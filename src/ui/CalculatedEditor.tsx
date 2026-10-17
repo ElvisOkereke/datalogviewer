@@ -26,9 +26,10 @@ type Check = { ok: true; summary: string } | { ok: false; message: string } | nu
 const DRAFT_ID = '__draft__';
 
 /**
- * Runs the draft through the same evaluation the saved channel will get, alongside the other
+ * Runs the draft through the same resolution the saved channel will get, alongside the other
  * definitions, so references by header and cycles through other channels are judged the same way
- * as after saving. Returns the error for the draft, if any.
+ * as after saving. Returns the error for the draft, if any. Those errors don't depend on the data,
+ * so this runs on the first row only and stays cheap however many definitions there are.
  */
 function checkInContext(
   log: Log,
@@ -36,7 +37,19 @@ function checkInContext(
   draft: Omit<CalculatedDef, 'id'>,
   editingId?: string,
 ): string | undefined {
-  const fileLog = { ...log, channels: log.channels.filter((c) => c.kind !== 'calculated') };
+  const rows = Math.min(1, log.rowCount);
+  const fileLog: Log = {
+    ...log,
+    rowCount: rows,
+    time: log.time.subarray(0, rows),
+    channels: log.channels
+      .filter((c) => c.kind !== 'calculated')
+      .map((c) => ({
+        ...c,
+        values: c.values?.subarray(0, rows) ?? null,
+        text: c.text?.slice(0, rows) ?? null,
+      })),
+  };
   const id = editingId ?? DRAFT_ID;
   const defs = editingId
     ? calculated.map((d) => (d.id === editingId ? { ...draft, id } : d))
