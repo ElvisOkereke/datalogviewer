@@ -8,15 +8,23 @@ import 'normilize.dart';
 
 class CsvLineChart extends StatefulWidget {
   @override
-  _CsvLineChartState createState() => _CsvLineChartState();
+  _CsvLineChartState createState() =>
+      _CsvLineChartState(multiplier: multiplier);
+
+  double multiplier = 0.0;
+
+  CsvLineChart({required this.multiplier});
 }
 //Features to add:
 //1. Calculated Fields
 //2. add cursor to chart
-//3. find out why large amount of zeros at the end of the chart
+//3. add settings menu(normalize, show dots)
+//4. global maxvisiblepoints slider for all charts
 
 class _CsvLineChartState extends State<CsvLineChart>
     with AutomaticKeepAliveClientMixin {
+  _CsvLineChartState({required this.multiplier});
+
   //automatic keep alive mixin, added to prevent extra charts from resetting
   List<int?> selectedVariables =
       List.filled(5, null); // Default selected variables to None
@@ -27,6 +35,8 @@ class _CsvLineChartState extends State<CsvLineChart>
     const Color.fromARGB(255, 255, 255, 0), // Bright Yellow
     const Color.fromARGB(255, 255, 0, 255), // Bright Magenta
   ];
+
+  double multiplier = 0.0;
   double _sliderValue = 0.0;
   List<Widget> chartWidgets = [];
   List<Widget> chartWidgetsMin = [];
@@ -41,6 +51,10 @@ class _CsvLineChartState extends State<CsvLineChart>
         context,
         data,
       ) {
+        // Calculate minY and maxY based on the selected variables
+        List<double> minY = List.filled(data.length, double.infinity);
+        List<double> maxY = List.filled(data.length, double.negativeInfinity);
+
         if (data.isEmpty) {
           return const Center(
               child: Text('No data loaded',
@@ -49,6 +63,24 @@ class _CsvLineChartState extends State<CsvLineChart>
         if (pointerValue == 0.0 || pointerValue == data[2][5].toDouble()) {
           //check if user uploaded new data then resets the chart to the beginning
           pointerValue = double.tryParse(data[2][5].toString()) ?? 0.0;
+
+          for (int? variableIndex in selectedVariables) {
+            if (variableIndex != null) {
+              for (int j = 0; j < data[j].length; j++) {
+                for (int i = 0; i < data.length; i++) {
+                  double value = double.tryParse(data[i][j].toString()) ?? 0;
+
+                  if (value < minY[j]) minY[j] = value;
+                  if (value > maxY[j]) maxY[j] = value;
+                  if (minY[j] == double.infinity ||
+                      maxY[j] == double.negativeInfinity) {
+                    minY[j] = 0;
+                    maxY[j] = 1;
+                  }
+                }
+              }
+            }
+          }
         } else {
           selectedVariables = List.filled(5, null);
           pointerValue = double.tryParse(data[2][5].toString()) ?? 0.0;
@@ -56,29 +88,8 @@ class _CsvLineChartState extends State<CsvLineChart>
         }
 
         int maxPoints = data.length - 1;
-        double maxVisiblePoints = max(maxPoints * .15,
-            10); //max visible points on the chart 30% of the data length or 10 points
-
-        // Calculate minY and maxY based on the selected variables
-        List<double> minY = List.filled(data.length, double.infinity);
-        List<double> maxY = List.filled(data.length, double.negativeInfinity);
-        for (int? variableIndex in selectedVariables) {
-          if (variableIndex != null) {
-            for (int j = 0; j < data[j].length; j++) {
-              for (int i = 0; i < data.length; i++) {
-                double value = double.tryParse(data[i][j].toString()) ?? 0;
-
-                if (value < minY[j]) minY[j] = value;
-                if (value > maxY[j]) maxY[j] = value;
-                if (minY[j] == double.infinity ||
-                    maxY[j] == double.negativeInfinity) {
-                  minY[j] = 0;
-                  maxY[j] = 1;
-                }
-              }
-            }
-          }
-        }
+        double maxVisiblePoints = max(maxPoints * multiplier,
+            25); //max visible points on the chart 15% of the data length or 25 points
 
         List<LineChartBarData> finalData = _getLineChartBarData(
             data, _sliderValue, maxVisiblePoints, minY, maxY);

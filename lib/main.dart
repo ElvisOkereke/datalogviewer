@@ -28,6 +28,8 @@ class CsvHomePage extends StatefulWidget {
 
 class _CsvHomePageState extends State<CsvHomePage> {
   int _numberOfCharts = 1;
+  double _startValue = 0.0;
+  double _endValue = 15.0;
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +66,7 @@ class _CsvHomePageState extends State<CsvHomePage> {
                 context: context,
                 builder: (BuildContext context) {
                   return AlertDialog(
-                    backgroundColor: Color.fromARGB(0, 38, 44, 48),
+                    backgroundColor: const Color.fromARGB(0, 38, 44, 48),
                     contentPadding: EdgeInsets.zero,
                     content: SizedBox(
                       width: MediaQuery.of(context).size.width * 0.9,
@@ -110,6 +112,17 @@ class _CsvHomePageState extends State<CsvHomePage> {
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
+                  RangeSlider(
+                    min: 0.0,
+                    max: 100.0,
+                    values: RangeValues(_startValue, _endValue),
+                    onChanged: (values) {
+                      setState(() {
+                        _startValue = values.start;
+                        _endValue = values.end;
+                      });
+                    },
+                  ),
                   const SizedBox(height: 16),
                   Expanded(
                     flex: 2,
@@ -120,7 +133,9 @@ class _CsvHomePageState extends State<CsvHomePage> {
                           padding: const EdgeInsets.symmetric(vertical: 8.0),
                           child: SizedBox(
                             //height: 200, // Set a fixed height for each chart
-                            child: CsvLineChart(),
+                            child: CsvLineChart(
+                              multiplier: (_endValue - _startValue) / 100,
+                            ),
                           ),
                         );
                       },
@@ -140,11 +155,11 @@ class _CsvHomePageState extends State<CsvHomePage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Error'),
+          title: const Text('Error'),
           content: Text(errorMessage),
           actions: [
             TextButton(
-              child: Text('OK'),
+              child: const Text('OK'),
               onPressed: () {
                 Navigator.of(context).pop();
               },
