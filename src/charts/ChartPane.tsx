@@ -5,20 +5,23 @@ import { cn } from '@/lib/utils';
 import type { Log } from '@/data/types';
 import type { BoundPane } from '@/state/layout';
 import { useViewStore } from '@/state/viewStore';
-import { buildPaneOptions } from './buildOptions';
+import { nearestIndex } from '@/data/timeIndex';
+import { buildPaneOptions, toPlotValues } from './buildOptions';
 import { readChartTheme, type ChartTheme } from './chartTheme';
 import { Legend } from './Legend';
+import { decimateMinMax, planWindow } from './decimate';
 import { navigationPlugin } from './navigation';
 import type { XRange } from './range';
 
-const navigation = () => {
+const navigation = (time: Float64Array) => {
   const view = useViewStore.getState;
   return navigationPlugin({
     zoomAt: (anchor, factor) => view().zoomAt(anchor, factor),
     pan: (delta) => view().pan(delta),
     setRange: (r) => view().setRange(r),
     fit: () => view().fit(),
-    pin: (i) => view().pin(i),
+    // Plotted data may be decimated, so positions map to log rows by time, not by data index.
+    pinAt: (t) => view().pin(nearestIndex(time, t)),
     isPinned: () => view().pinned,
   });
 };
@@ -55,6 +58,8 @@ export function ChartPane({ pane, log, focused }: { pane: BoundPane; log: Log; f
   const rootRef = useRef<HTMLDivElement>(null);
   const plotRef = useRef<HTMLDivElement>(null);
   const uRef = useRef<uPlot | null>(null);
+  /** Shows a range, decimating the visible window when it has far more samples than pixels. */
+  const showRef = useRef<(r: XRange) => void>(() => {});
   const paneRef = useRef(pane);
   paneRef.current = pane;
   const theme = useChartTheme();
@@ -89,23 +94,48 @@ export function ChartPane({ pane, log, focused }: { pane: BoundPane; log: Log; f
       height: Math.max(height, 60),
       axisHeader,
     });
-    opts.plugins = [navigation()];
+    opts.plugins = [navigation(log.time)];
     opts.hooks = {
-      setCursor: [(u) => useViewStore.getState().setCursor(u.cursor.idx ?? null)],
+      setCursor: [
+        (u) => {
+          const left = u.cursor.left;
+          const index =
+            left == null || left < 0 ? null : nearestIndex(log.time, u.posToVal(left, 'x'));
+          useViewStore.getState().setCursor(index);
+        },
+      ],
     };
 
+    const raw = paneRef.current.series.flatMap((s) =>
+      s.channel?.values ? [s.channel.values] : [],
+    );
+    let decimated = false;
     const u = new uPlot(opts, data, el);
     uRef.current = u;
-    const { range, bounds } = useViewStore.getState();
-    const r = range ?? bounds;
-    if (r) {
+    showRef.current = (r) => {
+      const plan = planWindow(log.time, r, u.over.clientWidth || width);
+      if (plan.decimate) {
+        const { x, ys } = decimateMinMax(log.time, raw, plan.i0, plan.i1, plan.bucket);
+        u.setData([x, ...ys.map(toPlotValues)] as uPlot.AlignedData, false);
+        decimated = true;
+      } else if (decimated) {
+        u.setData(data, false);
+        decimated = false;
+      }
       u.setScale('x', r);
       markRange(rootRef.current, r);
-    }
+    };
+    const { range, bounds } = useViewStore.getState();
+    const r = range ?? bounds;
+    if (r) showRef.current(r);
 
     const observer = new ResizeObserver(([entry]) => {
       const box = entry.contentRect;
-      if (box.width > 0 && box.height > 0) u.setSize({ width: box.width, height: box.height });
+      if (box.width > 0 && box.height > 0) {
+        u.setSize({ width: box.width, height: box.height });
+        const current = useViewStore.getState().range ?? useViewStore.getState().bounds;
+        if (current) showRef.current(current);
+      }
     });
     observer.observe(el);
     return () => {
@@ -122,13 +152,9 @@ export function ChartPane({ pane, log, focused }: { pane: BoundPane; log: Log; f
         const u = uRef.current;
         if (!u) return;
         const r = s.range ?? s.bounds;
-        if (r && (s.range !== prev.range || s.bounds !== prev.bounds)) {
-          if (u.scales.x.min !== r.min || u.scales.x.max !== r.max) u.setScale('x', r);
-          markRange(rootRef.current, r);
-        }
+        if (r && (s.range !== prev.range || s.bounds !== prev.bounds)) showRef.current(r);
         if (s.pinned && s.cursor != null && (s.cursor !== prev.cursor || !prev.pinned)) {
-          const left = u.valToPos(log.time[s.cursor], 'x');
-          if (u.cursor.idx !== s.cursor) u.setCursor({ left, top: u.cursor.top ?? 0 });
+          u.setCursor({ left: u.valToPos(log.time[s.cursor], 'x'), top: u.cursor.top ?? 0 });
         }
       }),
     [log],

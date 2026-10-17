@@ -6,7 +6,8 @@ export interface NavigationHandlers {
   pan(delta: number): void;
   setRange(r: XRange): void;
   fit(): void;
-  pin(index: number): void;
+  /** Pins the cursor at an x value (the caller maps it to a log row). */
+  pinAt(x: number): void;
   /** While pinned the crosshair ignores hover, except during a Shift+drag selection. */
   isPinned(): boolean;
 }
@@ -114,8 +115,7 @@ export function navigationPlugin(h: NavigationHandlers): uPlot.Plugin {
             pointers.delete(e.pointerId);
             if (wasSingle && !moved && e.type === 'pointerup') {
               const rect = over.getBoundingClientRect();
-              const idx = u.posToIdx(e.clientX - rect.left);
-              if (idx != null && idx >= 0) h.pin(idx);
+              h.pinAt(u.posToVal(e.clientX - rect.left, 'x'));
             }
           };
           over.addEventListener('pointerup', end);

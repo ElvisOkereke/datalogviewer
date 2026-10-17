@@ -194,3 +194,38 @@ test.describe('toolbar on a phone', () => {
     }
   });
 });
+
+test('the layout survives a reload and re-binds across logs', async ({ page }) => {
+  await loadDemo(page);
+  await page.getByTestId('channel-row').filter({ hasText: 'Battery Voltage' }).click();
+  await expect(page.getByRole('button', { name: /Battery Voltage/ })).toBeVisible();
+
+  await page.reload();
+  await page.getByRole('button', { name: 'Demo engine run' }).click();
+  await expect(page.getByRole('button', { name: /Battery Voltage/ })).toBeVisible();
+
+  await page.getByLabel('Open log').setInputFiles('tests/fixtures/autodata-sheet2.csv');
+  await expect(page.getByRole('banner')).toContainText('autodata-sheet2.csv');
+  await expect(page.getByRole('button', { name: /Engine Speed.*not in this log/ })).toBeVisible();
+  await page.getByTestId('channel-row').filter({ hasText: 'Engine Load' }).click();
+  await expect(page.getByRole('button', { name: /Engine Load/ }).first()).toBeVisible();
+
+  await page.getByRole('button', { name: 'Layout' }).click();
+  await page.getByRole('menuitem', { name: 'Reset layout' }).click();
+  await expect(page.getByText('not in this log')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /Accelerator Position/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Coolant Temperature/ })).toBeVisible();
+});
+
+test('switching to the light theme redraws the charts', async ({ page }) => {
+  await loadDemo(page);
+  await hoverPlot(page, 0.5);
+  const before = await legendValues(page);
+  const themeButton = page.getByRole('banner').getByRole('button', { name: /^Theme:/ });
+  while ((await page.locator('html').getAttribute('data-theme')) !== 'light') {
+    await themeButton.click();
+  }
+  await expect(page.getByTestId('chart-pane').first().locator('canvas')).toHaveCount(1);
+  await hoverPlot(page, 0.5);
+  expect(await legendValues(page)).toEqual(before);
+});
