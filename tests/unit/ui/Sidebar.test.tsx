@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { parseCsvText } from '@/io/csv/parseCsv';
 import { EMPTY_LAYOUT } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
@@ -96,4 +96,63 @@ test('long channel lists are virtualized', () => {
   expect(rows().length).toBeGreaterThan(5);
   expect(rows().length).toBeLessThan(60);
   vi.restoreAllMocks();
+});
+
+describe('the list follows the selected chart', () => {
+  beforeEach(() => {
+    useLayoutStore.setState({
+      ...EMPTY_LAYOUT,
+      panes: [
+        { id: 'p1', size: 50, sharedAxis: false, series: [{ header: 'RPM', color: 's1' }] },
+        { id: 'p2', size: 50, sharedAxis: false, series: [{ header: 'MAP (kPa)', color: 's2' }] },
+      ],
+    });
+  });
+
+  test('rows show what the selected chart contains, and update when the selection changes', () => {
+    useViewStore.setState({ focusedPaneId: 'p2' });
+    render(<Sidebar log={log} />);
+    expect(row('MAP')).toHaveAttribute('aria-pressed', 'true');
+    expect(row('RPM')).toHaveAttribute('aria-pressed', 'false');
+    act(() => useViewStore.setState({ focusedPaneId: 'p1' }));
+    expect(row('RPM')).toHaveAttribute('aria-pressed', 'true');
+    expect(row('MAP')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('clicking a channel already in the selected chart removes it', async () => {
+    useViewStore.setState({ focusedPaneId: 'p1' });
+    render(<Sidebar log={log} />);
+    await userEvent.click(row('RPM'));
+    expect(seriesIn('p1')).toEqual([]);
+    expect(row('RPM')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('clicking a channel shown in another chart adds it here and leaves the other chart alone', async () => {
+    useViewStore.setState({ focusedPaneId: 'p1' });
+    render(<Sidebar log={log} />);
+    await userEvent.click(row('MAP'));
+    expect(seriesIn('p1')).toEqual(['RPM', 'MAP (kPa)']);
+    expect(seriesIn('p2')).toEqual(['MAP (kPa)']);
+  });
+
+  test('channels only in other charts are marked differently from ones in this chart', () => {
+    useViewStore.setState({ focusedPaneId: 'p1' });
+    render(<Sidebar log={log} />);
+    expect(row('MAP').dataset.state).toBe('elsewhere');
+    expect(row('RPM').dataset.state).toBe('here');
+    expect(row('Mode').dataset.state).toBe('off');
+  });
+
+  test('with nothing selected yet, the first chart is the target', () => {
+    useViewStore.setState({ focusedPaneId: null });
+    render(<Sidebar log={log} />);
+    expect(row('RPM')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('Chart 1 of 2')).toBeInTheDocument();
+  });
+
+  test('a selection that points at a deleted chart falls back to the first chart', () => {
+    useViewStore.setState({ focusedPaneId: 'gone' });
+    render(<Sidebar log={log} />);
+    expect(row('RPM')).toHaveAttribute('aria-pressed', 'true');
+  });
 });

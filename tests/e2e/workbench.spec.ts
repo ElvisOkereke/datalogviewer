@@ -198,23 +198,38 @@ test.describe('toolbar on a phone', () => {
 test('the layout survives a reload and re-binds across logs', async ({ page }) => {
   await loadDemo(page);
   await page.getByTestId('channel-row').filter({ hasText: 'Battery Voltage' }).click();
-  await expect(page.getByRole('button', { name: /Battery Voltage/ })).toBeVisible();
+  await expect(
+    page.getByTestId('chart-pane').getByRole('button', { name: /Battery Voltage/ }),
+  ).toBeVisible();
 
   await page.reload();
   await page.getByRole('button', { name: 'Demo engine run' }).click();
-  await expect(page.getByRole('button', { name: /Battery Voltage/ })).toBeVisible();
+  await expect(
+    page.getByTestId('chart-pane').getByRole('button', { name: /Battery Voltage/ }),
+  ).toBeVisible();
 
   await page.getByLabel('Open log').setInputFiles('tests/fixtures/autodata-sheet2.csv');
   await expect(page.getByRole('banner')).toContainText('autodata-sheet2.csv');
-  await expect(page.getByRole('button', { name: /Engine Speed.*not in this log/ })).toBeVisible();
+  await expect(
+    page.getByTestId('chart-pane').getByRole('button', { name: /Engine Speed.*not in this log/ }),
+  ).toBeVisible();
   await page.getByTestId('channel-row').filter({ hasText: 'Engine Load' }).click();
-  await expect(page.getByRole('button', { name: /Engine Load/ }).first()).toBeVisible();
+  await expect(
+    page
+      .getByTestId('chart-pane')
+      .getByRole('button', { name: /Engine Load/ })
+      .first(),
+  ).toBeVisible();
 
   await page.getByRole('button', { name: 'Layout' }).click();
   await page.getByRole('menuitem', { name: 'Reset layout' }).click();
   await expect(page.getByText('not in this log')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: /Accelerator Position/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Coolant Temperature/ })).toBeVisible();
+  await expect(
+    page.getByTestId('chart-pane').getByRole('button', { name: /Accelerator Position/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByTestId('chart-pane').getByRole('button', { name: /Coolant Temperature/ }),
+  ).toBeVisible();
 });
 
 test('switching to the light theme redraws the charts', async ({ page }) => {
@@ -288,4 +303,34 @@ test('Shift+drag zooms to the selection even with a pinned cursor', async ({ pag
   expect(r.min).toBeGreaterThan(100);
   expect(r.max).toBeLessThan(260);
   expect(r.max - r.min).toBeGreaterThan(100);
+});
+
+test('the channel list follows the selected chart and toggles channels on it', async ({ page }) => {
+  await loadDemo(page);
+  const channel = (name: string) => page.getByTestId('channel-row').filter({ hasText: name });
+  const selectChart = async (n: number) => {
+    const pane = page.getByTestId('chart-pane').nth(n);
+    const box = (await pane.boundingBox())!;
+    await page.mouse.click(box.x + box.width * 0.5, box.y + 12); // empty part of the legend row
+  };
+
+  // Chart 1 starts selected: Engine Speed and MAP on, AFR shown elsewhere.
+  await expect(page.getByText('Chart 1 of 2')).toBeVisible();
+  await expect(channel('Engine Speed')).toHaveAttribute('aria-pressed', 'true');
+  await expect(channel('AFR')).toHaveAttribute('data-state', 'elsewhere');
+
+  await selectChart(1);
+  await expect(page.getByText('Chart 2 of 2')).toBeVisible();
+  await expect(channel('AFR')).toHaveAttribute('aria-pressed', 'true');
+  await expect(channel('Engine Speed')).toHaveAttribute('aria-pressed', 'false');
+
+  await channel('Battery Voltage').click();
+  const secondLegend = page.getByTestId('chart-pane').nth(1);
+  await expect(secondLegend.getByRole('button', { name: /Battery Voltage/ })).toBeVisible();
+  await channel('Battery Voltage').click();
+  await expect(secondLegend.getByRole('button', { name: /Battery Voltage/ })).toHaveCount(0);
+
+  await selectChart(0);
+  await expect(channel('Engine Speed')).toHaveAttribute('aria-pressed', 'true');
+  await expect(channel('AFR')).toHaveAttribute('aria-pressed', 'false');
 });

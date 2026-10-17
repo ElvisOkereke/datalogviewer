@@ -9,8 +9,8 @@ import { PaneStack } from '@/ui/PaneStack';
 
 // jsdom has no canvas; chart rendering is covered by Playwright.
 vi.mock('@/charts/ChartPane', () => ({
-  ChartPane: ({ pane }: { pane: { id: string } }) => (
-    <div data-testid="chart-pane" data-pane-id={pane.id} />
+  ChartPane: ({ pane, focused }: { pane: { id: string }; focused: boolean }) => (
+    <div data-testid="chart-pane" data-pane-id={pane.id} data-focused={String(focused)} />
   ),
 }));
 
@@ -99,4 +99,11 @@ test('the pane menu toggles the shared axis and clears series', async () => {
   await openMenu(options);
   await userEvent.click(await screen.findByRole('menuitem', { name: 'Clear' }));
   expect(panes()[0].series).toEqual([]);
+});
+
+test('with nothing selected yet, the first chart shows as selected', () => {
+  useViewStore.setState({ focusedPaneId: null });
+  render(<PaneStack log={log} />);
+  const focused = screen.getAllByTestId('chart-pane').map((el) => el.dataset.focused);
+  expect(focused).toEqual(['true', 'false']);
 });
