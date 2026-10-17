@@ -121,3 +121,39 @@ describe('calculated channels', () => {
     expect(screen.getAllByTestId('chart-pane').length).toBeGreaterThan(0);
   });
 });
+
+describe('layout files', () => {
+  const file = (text: string) =>
+    new File([text], 'shared.dlvlayout.json', { type: 'application/json' });
+
+  test('opening a valid layout file asks first, then replaces the layout', async () => {
+    renderShell();
+    loadLog();
+    const text = JSON.stringify({
+      app: 'DataLogViewer',
+      kind: 'layout',
+      ...EMPTY_LAYOUT,
+      calculated: [{ id: 'k', name: 'Shared', expression: '[RPM] / 2' }],
+    });
+    fireEvent.change(screen.getByLabelText('Open layout file'), {
+      target: { files: [file(text)] },
+    });
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      'Replace your current layout?',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Replace' }));
+    expect(useLayoutStore.getState().calculated.map((d) => d.name)).toEqual(['Shared']);
+  });
+
+  test('an invalid file changes nothing', async () => {
+    renderShell();
+    loadLog();
+    const before = useLayoutStore.getState().panes;
+    fireEvent.change(screen.getByLabelText('Open layout file'), {
+      target: { files: [file('[]')] },
+    });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(useLayoutStore.getState().panes).toBe(before);
+  });
+});

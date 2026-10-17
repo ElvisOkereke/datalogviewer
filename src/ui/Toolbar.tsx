@@ -52,6 +52,8 @@ export function Toolbar({
   onOpen,
   onShowShortcuts,
   onShowAbout,
+  onSaveLayout,
+  onOpenLayout,
   leading,
   compact = false,
 }: {
@@ -59,6 +61,8 @@ export function Toolbar({
   onOpen(): void;
   onShowShortcuts(): void;
   onShowAbout(): void;
+  onSaveLayout(): void;
+  onOpenLayout(): void;
   /** Extra controls at the start (e.g. the channels drawer button on narrow screens). */
   leading?: ReactNode;
   /** Narrow screens: secondary actions move into the overflow menu. */
@@ -120,6 +124,8 @@ export function Toolbar({
                 <DropdownMenuItem onSelect={() => useLayoutStore.getState().resetLayout(log)}>
                   Reset layout
                 </DropdownMenuItem>
+                <DropdownMenuItem onSelect={onSaveLayout}>Save layout to file…</DropdownMenuItem>
+                <DropdownMenuItem onSelect={onOpenLayout}>Open layout file…</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -157,6 +163,12 @@ export function Toolbar({
             <DropdownMenuItem onSelect={() => useLayoutStore.getState().resetLayout(log)}>
               Reset layout
             </DropdownMenuItem>
+          )}
+          {compact && log && (
+            <DropdownMenuItem onSelect={onSaveLayout}>Save layout to file…</DropdownMenuItem>
+          )}
+          {compact && log && (
+            <DropdownMenuItem onSelect={onOpenLayout}>Open layout file…</DropdownMenuItem>
           )}
           {compact && (
             <DropdownMenuItem

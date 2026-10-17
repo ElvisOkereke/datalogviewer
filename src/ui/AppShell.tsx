@@ -1,12 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Menu } from 'lucide-react';
 import { OverviewStrip } from '@/charts/OverviewStrip';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { Log, ParseWarning } from '@/data/types';
-import { bindLayout } from '@/state/layout';
+import { bindLayout, migrateLayout, type PersistedLayout } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
 import { LARGE_FILE_BYTES, selectActiveLog, useLogStore } from '@/state/logStore';
 import { useViewStore } from '@/state/viewStore';
@@ -21,6 +31,8 @@ import { PaneStack } from './PaneStack';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { Sidebar } from './Sidebar';
 import { Toolbar } from './Toolbar';
+import { downloadBlob } from './download';
+import { parseLayoutFile, serializeLayout } from './layoutFile';
 import { useFileDrop } from './useFileDrop';
 import { useIsNarrow } from './useIsNarrow';
 import { useShortcuts } from './useShortcuts';
@@ -134,6 +146,20 @@ export function AppShell() {
   const rawLog = useLogStore(selectActiveLog);
   const { log, calcErrors } = useWorkbenchLog();
   const inputRef = useRef<HTMLInputElement>(null);
+  const layoutInputRef = useRef<HTMLInputElement>(null);
+  const [pendingLayout, setPendingLayout] = useState<PersistedLayout | null>(null);
+  const saveLayout = () =>
+    downloadBlob(
+      new Blob([serializeLayout(migrateLayout(useLayoutStore.getState()))], {
+        type: 'application/json',
+      }),
+      'datalogviewer-layout.dlvlayout.json',
+    );
+  const openLayoutFile = async (file: File) => {
+    const layout = parseLayoutFile(await file.text());
+    if (layout) setPendingLayout(layout);
+    else toast.error("This isn't a DataLogViewer layout file.");
+  };
   const [pendingLarge, setPendingLarge] = useState<File | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -157,6 +183,8 @@ export function AppShell() {
         onOpen={chooseFile}
         onShowShortcuts={() => setShortcutsOpen(true)}
         onShowAbout={() => setAboutOpen(true)}
+        onSaveLayout={saveLayout}
+        onOpenLayout={() => layoutInputRef.current?.click()}
         compact={narrow}
         leading={
           narrow && log ? (
@@ -185,6 +213,40 @@ export function AppShell() {
           e.target.value = '';
         }}
       />
+      <input
+        ref={layoutInputRef}
+        type="file"
+        aria-label="Open layout file"
+        accept=".json,application/json"
+        className="sr-only"
+        tabIndex={-1}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void openLayoutFile(file);
+          e.target.value = '';
+        }}
+      />
+      <AlertDialog open={pendingLayout !== null} onOpenChange={(o) => !o && setPendingLayout(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace your current layout?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The charts, calculated channels and scatter settings from the file will replace yours.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingLayout) useLayoutStore.getState().replaceLayout(pendingLayout);
+                setPendingLayout(null);
+              }}
+            >
+              Replace
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {log ? (
         <ErrorBoundary resetKey={log.id} label="the workbench">
           <Workbench
