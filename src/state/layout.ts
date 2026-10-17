@@ -1,6 +1,7 @@
 import { isSeriesColor, nextSeriesColor, type SeriesColor } from '@/charts/palette';
 import type { CalculatedDef } from '@/data/calculated';
 import { findChannel, MAX_HEADER_CHARS } from '@/data/channels';
+import { isOverComplex } from '@/data/formula/parse';
 import type { Channel, Log } from '@/data/types';
 
 export interface SeriesRef {
@@ -47,6 +48,8 @@ export const MAX_NAME_CHARS = 100;
 export const MAX_PANES = 32;
 export const MAX_SERIES_PER_PANE = 32;
 export const MAX_CALCULATED = 64;
+/** The sidebar width a layout may set (px); outside this the chart area can be squeezed away. */
+export const SIDEBAR_WIDTH_RANGE = { min: 160, max: 480 } as const;
 
 export interface BoundSeries extends SeriesRef {
   /** null when the saved series names a channel this log doesn't have. */
@@ -142,7 +145,9 @@ function isCalculatedDef(v: unknown): v is CalculatedDef {
     typeof v.expression === 'string' &&
     v.expression.length <= MAX_EXPRESSION_CHARS &&
     optionalString(v.unit) &&
-    (v.unit === undefined || (v.unit as string).length <= MAX_NAME_CHARS)
+    (v.unit === undefined || (v.unit as string).length <= MAX_NAME_CHARS) &&
+    // Syntax errors are kept (shown as unavailable); formulas too costly to run are not.
+    !isOverComplex(v.expression)
   );
 }
 
@@ -178,7 +183,10 @@ export function migrateLayout(raw: unknown): PersistedLayout {
   if (!isObject(raw) || !hasCommonShape(raw)) return EMPTY_LAYOUT;
   const common = {
     panes: raw.panes,
-    sidebarWidth: raw.sidebarWidth,
+    sidebarWidth: Math.min(
+      SIDEBAR_WIDTH_RANGE.max,
+      Math.max(SIDEBAR_WIDTH_RANGE.min, raw.sidebarWidth),
+    ),
     inspectorOpen: raw.inspectorOpen,
   };
   if (raw.version === 1 && (raw.view === 'chart' || raw.view === 'table')) {
@@ -193,6 +201,7 @@ export function migrateLayout(raw: unknown): PersistedLayout {
     Array.isArray(raw.calculated) &&
     raw.calculated.length <= MAX_CALCULATED &&
     raw.calculated.every(isCalculatedDef) &&
+    new Set(raw.calculated.map((d: CalculatedDef) => d.id)).size === raw.calculated.length &&
     isScatter(raw.scatter)
   ) {
     return {

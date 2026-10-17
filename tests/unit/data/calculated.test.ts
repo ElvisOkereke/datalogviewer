@@ -9,6 +9,17 @@ const log = parseCsvText('Time (s),RPM,AFR\n0,800,14.7\n0.05,900,13.0\n0.1,1000,
 });
 const channel = (l: typeof log, name: string) => l.channels.find((c) => c.name === name);
 
+test('another calculated channel can be referenced by its header as well as its name', () => {
+  const { log: out, errors } = withCalculated(log, [
+    { id: 'p', name: 'Pct', expression: '[Lambda (λ)] * 100' },
+    { id: 'q', name: 'Pct2', expression: '[lambda] * 100' },
+    { id: 'l', name: 'Lambda', unit: 'λ', expression: '[AFR] / 14.7' },
+  ]);
+  expect(errors).toEqual({});
+  expect(channel(out, 'Pct')!.values![0]).toBeCloseTo(100);
+  expect(channel(out, 'Pct2')!.values![0]).toBeCloseTo(100);
+});
+
 test('a definition becomes a calculated channel after the file channels', () => {
   const { log: out, errors } = withCalculated(log, [
     { id: 'k1', name: 'Lambda', unit: 'λ', expression: '[AFR] / 14.7' },

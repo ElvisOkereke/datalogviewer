@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import type { CalculatedDef } from '@/data/calculated';
+import { withCalculated, type CalculatedDef } from '@/data/calculated';
 import { findChannel } from '@/data/channels';
 import { evaluateFormula } from '@/data/formula/evaluate';
 import { parseFormula } from '@/data/formula/parse';
@@ -22,6 +22,27 @@ import { MAX_EXPRESSION_CHARS, MAX_NAME_CHARS } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
 
 type Check = { ok: true; summary: string } | { ok: false; message: string } | null;
+
+const DRAFT_ID = '__draft__';
+
+/**
+ * Runs the draft through the same evaluation the saved channel will get, alongside the other
+ * definitions, so references by header and cycles through other channels are judged the same way
+ * as after saving. Returns the error for the draft, if any.
+ */
+function checkInContext(
+  log: Log,
+  calculated: CalculatedDef[],
+  draft: Omit<CalculatedDef, 'id'>,
+  editingId?: string,
+): string | undefined {
+  const fileLog = { ...log, channels: log.channels.filter((c) => c.kind !== 'calculated') };
+  const id = editingId ?? DRAFT_ID;
+  const defs = editingId
+    ? calculated.map((d) => (d.id === editingId ? { ...draft, id } : d))
+    : [...calculated, { ...draft, id }];
+  return withCalculated(fileLog, defs).errors[id];
+}
 
 const VALIDATE_DELAY_MS = 200;
 
@@ -71,7 +92,8 @@ export function CalculatedEditor({
   const [name, setName] = useState('');
   const [unit, setUnit] = useState('');
   const [expression, setExpression] = useState('');
-  const [check, setCheck] = useState<Check>(null);
+  // The check and the inputs it was made for; Save needs them to match what is typed now.
+  const [checked, setChecked] = useState<{ key: string; check: Check }>({ key: '', check: null });
   const exprRef = useRef<HTMLTextAreaElement>(null);
   const calculated = useLayoutStore((s) => s.calculated);
   const base = logWithout(log, editing?.id);
@@ -81,17 +103,32 @@ export function CalculatedEditor({
     setName(editing?.name ?? '');
     setUnit(editing?.unit ?? '');
     setExpression(editing?.expression ?? '');
-    setCheck(null);
+    setChecked({ key: '', check: null });
   }, [open, editing]);
 
-  useEffect(() => {
-    const id = setTimeout(() => setCheck(checkExpression(expression, base)), VALIDATE_DELAY_MS);
-    return () => clearTimeout(id);
-    // `base` is derived from log + editing; re-check when those or the text change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expression, log, editing]);
-
   const trimmed = name.trim();
+  const draft = {
+    name: trimmed || editing?.name || DRAFT_ID,
+    unit: unit.trim() || undefined,
+    expression: expression.trim(),
+  };
+  const key = JSON.stringify(draft);
+  useEffect(() => {
+    const id = setTimeout(() => {
+      let check = checkExpression(expression, base);
+      if (check?.ok) {
+        const error = checkInContext(log, calculated, draft, editing?.id);
+        if (error) check = { ok: false, message: error };
+      }
+      setChecked({ key, check });
+    }, VALIDATE_DELAY_MS);
+    return () => clearTimeout(id);
+    // `base` and `draft` are derived from log, editing and the inputs (captured by `key`).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, log, editing, calculated]);
+  const check = checked.key === key ? checked.check : null;
+  // While a new check is pending the last result stays on screen (no flicker), but can't save.
+  const shown = expression.trim() ? checked.check : null;
   const taken =
     base.channels.some(
       (c) =>
@@ -113,7 +150,9 @@ export function CalculatedEditor({
     const el = exprRef.current;
     const at = el?.selectionStart ?? expression.length;
     const end = el?.selectionEnd ?? at;
-    const text = `[${header}]`;
+    // The plain name reads better ("[MAP]", not "[MAP [kPa]]") when it finds the same channel.
+    const ch = findChannel(base, header);
+    const text = `[${ch && findChannel(base, ch.name) === ch ? ch.name : header}]`;
     setExpression(expression.slice(0, at) + text + expression.slice(end));
     requestAnimationFrame(() => {
       el?.focus();
@@ -204,10 +243,10 @@ export function CalculatedEditor({
             aria-live="polite"
             className={cn(
               'min-h-5 text-xs',
-              check?.ok === false ? 'text-destructive' : 'text-muted-foreground',
+              shown?.ok === false ? 'text-destructive' : 'text-muted-foreground',
             )}
           >
-            {check === null ? 'Enter a formula.' : check.ok ? check.summary : check.message}
+            {shown === null ? 'Enter a formula.' : shown.ok ? shown.summary : shown.message}
           </p>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

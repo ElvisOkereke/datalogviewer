@@ -187,7 +187,8 @@ export function evaluateFormula(expr: Expr, env: EvalEnv): Float64Array {
         };
         for (let j = 0; j <= Math.min(after, n - 1); j++) add(j, 1);
         for (let i = 0; i < n; i++) {
-          out[i] = count > 0 ? sum / count : NaN;
+          // Gaps stay gaps; elsewhere the mean of the window's finite values.
+          out[i] = x[i] === x[i] && count > 0 ? sum / count : NaN;
           const enter = i + after + 1;
           const leave = i - before;
           if (enter < n) add(enter, 1);

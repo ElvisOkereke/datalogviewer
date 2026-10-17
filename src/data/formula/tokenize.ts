@@ -9,6 +9,9 @@ export class FormulaError extends Error {
   }
 }
 
+/** The formula has more parts than MAX_FORMULA_NODES. */
+export class FormulaTooComplexError extends FormulaError {}
+
 export type TokenKind = 'num' | 'ident' | 'channel' | 'op' | 'lparen' | 'rparen' | 'comma' | 'eof';
 
 export interface Token {
@@ -39,7 +42,15 @@ export function tokenize(src: string): Token[] {
       continue;
     }
     if (ch === '[') {
-      const close = src.indexOf(']', i + 1);
+      // Brackets inside a name balance, so headers like "MAP [kPa]" can be referenced whole.
+      let close = -1;
+      for (let j = i, depth = 0; j < src.length; j++) {
+        if (src[j] === '[') depth++;
+        else if (src[j] === ']' && --depth === 0) {
+          close = j;
+          break;
+        }
+      }
       if (close < 0) throw new FormulaError("Unterminated '[' — channel names end with ']'", i);
       tokens.push({ kind: 'channel', text: src.slice(i + 1, close).trim(), pos: i });
       i = close + 1;

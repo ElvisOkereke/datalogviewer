@@ -78,3 +78,34 @@ test('Insert channel adds a bracketed reference', async () => {
   await userEvent.selectOptions(screen.getByLabelText('Insert channel'), 'AFR');
   expect(screen.getByLabelText('Expression')).toHaveValue('2 * [AFR]');
 });
+
+test('a calculated channel picked by its header validates and keeps working after saving', async () => {
+  useLayoutStore
+    .getState()
+    .addCalculated({ name: 'Lambda', unit: 'λ', expression: '[AFR] / 14.7' });
+  open();
+  await userEvent.type(screen.getByLabelText('Name'), 'Pct');
+  await userEvent.selectOptions(screen.getByLabelText('Insert channel'), 'Lambda (λ)');
+  expect(await screen.findByText(/3 values/)).toBeInTheDocument();
+  await userEvent.click(save());
+  expect(withCalculated(raw, calculated()).errors).toEqual({});
+});
+
+test('a cycle through another calculated channel is caught before saving', async () => {
+  const store = useLayoutStore.getState();
+  store.addCalculated({ name: 'A', expression: '[RPM] * 2' });
+  store.addCalculated({ name: 'B', expression: '[A] + 1' });
+  open({ editing: calculated()[0] });
+  setExpression('[B] * 2');
+  expect(await screen.findByText(/refers to itself/)).toBeInTheDocument();
+  expect(save()).toBeDisabled();
+});
+
+test('Save waits for the check of what is typed now', async () => {
+  open();
+  await userEvent.type(screen.getByLabelText('Name'), 'X');
+  setExpression('[AFR] * 2');
+  expect(await screen.findByText(/3 values/)).toBeInTheDocument();
+  setExpression('[AFR] *');
+  expect(save()).toBeDisabled();
+});

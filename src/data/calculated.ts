@@ -1,4 +1,4 @@
-import { findChannel } from './channels';
+import { findChannel, splitHeaderUnit } from './channels';
 import { evaluateFormula } from './formula/evaluate';
 import { parseFormula, referencedNames, type Expr } from './formula/parse';
 import { FormulaError } from './formula/tokenize';
@@ -30,7 +30,12 @@ export function withCalculated(
 
   const errors: Record<string, string> = {};
   const parsed = new Map<string, Expr>();
+  // Same rule as findChannel: exact header ("Lambda (λ)") first, then name, case-insensitive.
+  const headerOf = (d: CalculatedDef) => (d.unit ? `${d.name} (${d.unit})` : d.name);
+  const byHeader = new Map(defs.map((d) => [headerOf(d), d]));
   const byName = new Map(defs.map((d) => [d.name.toLowerCase(), d]));
+  const findDef = (ref: string) =>
+    byHeader.get(ref) ?? byName.get(splitHeaderUnit(ref).name.toLowerCase());
   for (const def of defs) {
     try {
       parsed.set(def.id, parseFormula(def.expression));
@@ -61,7 +66,7 @@ export function withCalculated(
     active.push(def.id);
     for (const name of referencedNames(expr)) {
       if (fileValues(name)) continue;
-      const dep = byName.get(name.toLowerCase());
+      const dep = findDef(name);
       if (!dep || dep.id === def.id) {
         errors[def.id] ??= dep ? `[${def.name}] refers to itself` : `needs [${name}]`;
         break;
@@ -79,8 +84,7 @@ export function withCalculated(
       const values = evaluateFormula(expr, {
         rowCount: log.rowCount,
         time: log.time,
-        resolve: (name) =>
-          fileValues(name) ?? results.get(byName.get(name.toLowerCase())?.id ?? ''),
+        resolve: (name) => fileValues(name) ?? results.get(findDef(name)?.id ?? ''),
       });
       results.set(def.id, values);
       return values;
@@ -98,7 +102,7 @@ export function withCalculated(
     return [
       {
         id: `calc:${def.id}`,
-        header: def.unit ? `${def.name} (${def.unit})` : def.name,
+        header: headerOf(def),
         name: def.name,
         unit: def.unit,
         kind: 'calculated' as const,

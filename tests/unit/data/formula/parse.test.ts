@@ -84,3 +84,12 @@ test('referencedNames lists each channel once, in order', () => {
   expect(referencedNames(parseFormula('[A] + B * [A] + smooth(C, 3)'))).toEqual(['A', 'B', 'C']);
   expect(referencedNames(parseFormula('t * pi'))).toEqual([]);
 });
+
+test('channel names may contain brackets, like a [unit]', () => {
+  expect(referencedNames(parseFormula('[MAP [kPa]] * 2'))).toEqual(['MAP [kPa]']);
+});
+
+test('over-complex formulas are refused before they can stall the page', () => {
+  expect(() => parseFormula(Array(200).fill('[A]').join(' + '))).toThrow(/too complex/);
+  expect(() => parseFormula(Array(100).fill('[A]').join(' + '))).not.toThrow();
+});

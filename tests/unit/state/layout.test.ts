@@ -154,6 +154,41 @@ describe('schema v2', () => {
   });
 });
 
+describe('layout files cannot make the app unusable', () => {
+  test('the sidebar width is clamped to a usable range', () => {
+    expect(migrateLayout({ ...EMPTY_LAYOUT, sidebarWidth: 50000 }).sidebarWidth).toBe(480);
+    expect(migrateLayout({ ...EMPTY_LAYOUT, sidebarWidth: 3 }).sidebarWidth).toBe(160);
+    expect(migrateLayout({ ...EMPTY_LAYOUT, sidebarWidth: 300 }).sidebarWidth).toBe(300);
+  });
+
+  test.each([
+    [
+      'an over-complex formula',
+      {
+        ...EMPTY_LAYOUT,
+        calculated: [{ id: 'k', name: 'X', expression: Array(200).fill('[A]').join('+') }],
+      },
+    ],
+    [
+      'duplicate calculated ids',
+      {
+        ...EMPTY_LAYOUT,
+        calculated: [
+          { id: 'k', name: 'X', expression: '1' },
+          { id: 'k', name: 'Y', expression: '2' },
+        ],
+      },
+    ],
+  ])('rejects %s', (_label, raw) => {
+    expect(migrateLayout(raw)).toEqual(EMPTY_LAYOUT);
+  });
+
+  test('a formula with a syntax error is still kept (shown as unavailable)', () => {
+    const raw = { ...EMPTY_LAYOUT, calculated: [{ id: 'k', name: 'X', expression: '[A] +' }] };
+    expect(migrateLayout(raw).calculated).toHaveLength(1);
+  });
+});
+
 describe('size caps (layouts can come from files)', () => {
   const pane = (i: number, series = 1) => ({
     id: `p${i}`,

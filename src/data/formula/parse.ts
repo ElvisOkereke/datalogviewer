@@ -1,4 +1,17 @@
-import { FormulaError, tokenize, type Token } from './tokenize';
+import { FormulaError, FormulaTooComplexError, tokenize, type Token } from './tokenize';
+
+/**
+ * Most parts (numbers, references, operators, calls) a formula may have. Each part is a pass over
+ * every row, so this bounds the cost of a formula on a 1M-row log to a fraction of a second.
+ */
+export const MAX_FORMULA_NODES = 250;
+
+function nodeCount(e: Expr): number {
+  if (e.type === 'unary') return 1 + nodeCount(e.arg);
+  if (e.type === 'binary') return 1 + nodeCount(e.left) + nodeCount(e.right);
+  if (e.type === 'call') return e.args.reduce((n, a) => n + nodeCount(a), 1);
+  return 1;
+}
 
 export type BinaryOp =
   '+' | '-' | '*' | '/' | '^' | '<' | '<=' | '>' | '>=' | '==' | '!=' | 'and' | 'or';
@@ -134,7 +147,23 @@ export function parseFormula(src: string): Expr {
   const expr = or();
   const end = peek();
   if (end.kind !== 'eof') throw new FormulaError(`Unexpected ${describe(end)}`, end.pos);
+  if (nodeCount(expr) > MAX_FORMULA_NODES) {
+    throw new FormulaTooComplexError(
+      `Formula is too complex (more than ${MAX_FORMULA_NODES} parts)`,
+      0,
+    );
+  }
   return expr;
+}
+
+/** True only when the formula parses but is over MAX_FORMULA_NODES (syntax errors are false). */
+export function isOverComplex(src: string): boolean {
+  try {
+    parseFormula(src);
+    return false;
+  } catch (e) {
+    return e instanceof FormulaTooComplexError;
+  }
 }
 
 /** Channel names the formula refers to, each once, in order of appearance. */

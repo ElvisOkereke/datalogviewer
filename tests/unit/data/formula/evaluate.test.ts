@@ -72,8 +72,8 @@ describe('functions', () => {
     const e: EvalEnv = { ...env, time: Float64Array.of(0, 1, 1, 3) };
     expect(run('rate([B])', e)).toEqual([NaN, -10, NaN, -1.5]);
   });
-  test('smooth averages a centred window of finite values', () => {
-    expect(run('smooth([A], 3)')).toEqual([1.5, 1.5, 3, 4]);
+  test('smooth averages a centred window of finite values; gaps stay gaps', () => {
+    expect(run('smooth([A], 3)')).toEqual([1.5, 1.5, NaN, 4]);
   });
   test('lag shifts and pads with NaN', () => {
     expect(run('lag([A], 2)')).toEqual([NaN, NaN, 1, 2]);
