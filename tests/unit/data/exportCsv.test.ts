@@ -35,6 +35,17 @@ describe('buildCsv', () => {
     ]);
   });
 
+  test('formula guard looks past leading whitespace and covers | too', () => {
+    const t = parse('Time (s),Note\n0,a\n1,b\n2,c');
+    const note = t.channels.find((c) => c.header === 'Note')!;
+    note.text = ['  =1+1', '|cmd', '﻿@SUM(A1)'];
+    expect(buildCsv(t, [note], 0, 3).split('\n').slice(1, 4)).toEqual([
+      "0,'  =1+1",
+      "1,'|cmd",
+      "2,'﻿@SUM(A1)",
+    ]);
+  });
+
   test('calculated channels export their values', () => {
     const { log: wb } = withCalculated(log, [
       { id: 'k', name: 'Double', unit: 'rpm', expression: '[RPM] * 2' },

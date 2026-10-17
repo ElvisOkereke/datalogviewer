@@ -9,7 +9,8 @@ const num = (v: number) => (Number.isFinite(v) ? String(Number(v.toPrecision(15)
  * break, and prefixed with ' when a spreadsheet would otherwise run it as a formula.
  */
 function textCell(s: string): string {
-  const safe = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  // Spreadsheets skip leading whitespace (\s includes the BOM) before deciding on a formula.
+  const safe = /^(\s*[=+\-@|]|[\t\r])/.test(s) ? `'${s}` : s;
   return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 
