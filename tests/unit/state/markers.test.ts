@@ -63,20 +63,34 @@ describe('marker store', () => {
     expect(markers().markers).toEqual([]);
   });
 
-  test('saved markers are checked against the log, so a fingerprint collision loads nothing', () => {
+  test('saved markers carry a check digest, so a fingerprint collision loads nothing', () => {
     markers().load(run);
     markers().add(1);
     const key = `dlv.markers.${logFingerprint(run)}`;
-    const saved = JSON.parse(localStorage.getItem(key)!) as Record<string, unknown>;
-    expect(saved).toMatchObject({ fileName: 'run.csv', rowCount: 3, first: 0, last: 2 });
+    const saved = JSON.parse(localStorage.getItem(key)!) as { check: string };
+    expect(saved.check).toMatch(/^[0-9a-f]{16}$/);
+    expect(saved.check).not.toBe(logFingerprint(run));
 
     // Another log whose fingerprint happened to match would find this record under its key.
-    localStorage.setItem(key, JSON.stringify({ ...saved, fileName: 'other.csv' }));
+    localStorage.setItem(key, JSON.stringify({ ...saved, check: '0123456789abcdef' }));
     markers().load(run);
     expect(markers().markers).toEqual([]);
-    localStorage.setItem(key, JSON.stringify({ ...saved, rowCount: 4 }));
-    markers().load(run);
+  });
+
+  test('saved records hold no file names, and only the most recent 100 logs keep markers', () => {
+    const csv = 'Time (s),RPM\n0,800\n1,900';
+    for (let i = 0; i < 105; i++) {
+      markers().load(logOf(csv, `private-${i}.csv`));
+      markers().add(0.5);
+    }
+    const keys = Object.keys(localStorage).filter((k) => k.startsWith('dlv.markers.'));
+    expect(keys).toHaveLength(100);
+    expect(keys.map((k) => localStorage.getItem(k)).join('')).not.toContain('private');
+    // The oldest were dropped; the newest is still there.
+    markers().load(logOf(csv, 'private-0.csv'));
     expect(markers().markers).toEqual([]);
+    markers().load(logOf(csv, 'private-104.csv'));
+    expect(markers().markers).toHaveLength(1);
   });
 
   test('the fingerprint is 64-bit (16 hex digits)', () => {
