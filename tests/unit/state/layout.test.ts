@@ -146,7 +146,11 @@ describe('size caps (layouts can come from files)', () => {
       '65 calculated channels',
       {
         ...EMPTY_LAYOUT,
-        calculated: Array.from({ length: 65 }, (_, i) => ({ id: `k${i}`, name: `N${i}`, expression: '1' })),
+        calculated: Array.from({ length: 65 }, (_, i) => ({
+          id: `k${i}`,
+          name: `N${i}`,
+          expression: '1',
+        })),
       },
     ],
   ])('rejects %s', (_label, raw) => {
