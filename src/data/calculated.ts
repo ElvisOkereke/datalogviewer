@@ -28,7 +28,8 @@ export function withCalculated(
 ): { log: Log; errors: Record<string, string> } {
   if (defs.length === 0) return { log, errors: {} };
 
-  const errors: Record<string, string> = {};
+  // No prototype: ids come from layout files, and "constructor" must not look like an error.
+  const errors: Record<string, string> = Object.create(null) as Record<string, string>;
   const parsed = new Map<string, Expr>();
   // Same rule as findChannel: exact header ("Lambda (λ)") first, then name, case-insensitive.
   const headerOf = (d: CalculatedDef) => (d.unit ? `${d.name} (${d.unit})` : d.name);

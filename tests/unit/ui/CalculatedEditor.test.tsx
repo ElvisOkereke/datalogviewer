@@ -109,3 +109,14 @@ test('Save waits for the check of what is typed now', async () => {
   setExpression('[AFR] *');
   expect(save()).toBeDisabled();
 });
+
+test('the total size of all formulas is capped', async () => {
+  const big = Array(120).fill('[RPM]').join('+');
+  for (let i = 0; i < 8; i++)
+    useLayoutStore.getState().addCalculated({ name: `N${i}`, expression: big });
+  open();
+  await userEvent.type(screen.getByLabelText('Name'), 'More');
+  setExpression(Array(50).fill('[AFR]').join(' + ')); // 99 parts, over the 2,000 total
+  expect(await screen.findByText(/too complex in total/)).toBeInTheDocument();
+  expect(save()).toBeDisabled();
+});

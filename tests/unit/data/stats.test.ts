@@ -43,6 +43,7 @@ describe('range statistics', () => {
       for (const c of cols) rangeStats(c, 0, c.length);
       best = Math.min(best, performance.now() - start);
     }
-    expect(best).toBeLessThan(150);
+    // Shared CI runners run test files side by side on few cores; allow them 2x.
+    expect(best).toBeLessThan(process.env.CI ? 300 : 150);
   });
 });

@@ -77,3 +77,11 @@ test('syntax errors are reported as messages', () => {
 test('no definitions returns the same log object', () => {
   expect(withCalculated(log, []).log).toBe(log);
 });
+
+test('ids that look like built-in object properties are still evaluated', () => {
+  const { log: out, errors } = withCalculated(log, [
+    { id: 'constructor', name: 'Double', expression: '[RPM] * 2' },
+  ]);
+  expect(errors).toEqual({});
+  expect(channel(out, 'Double')!.values![0]).toBe(1600);
+});
