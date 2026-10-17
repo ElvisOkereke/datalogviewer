@@ -1,5 +1,5 @@
 import Papa from 'papaparse';
-import { splitHeaderUnit } from '@/data/channels';
+import { MAX_HEADER_CHARS, splitHeaderUnit } from '@/data/channels';
 import { LogParseError } from '@/data/errors';
 import { GrowableF64 } from '@/data/growable';
 import { finiteMinMax } from '@/data/stats';
@@ -247,7 +247,8 @@ function parseWithQuoting(
   const datetimeIds = new Set<string>();
   const seen = new Map<string, number>();
   for (let c = 0; c < columnCount; c++) {
-    const rawHeader = (headers[c] ?? '').trim();
+    // Room is left for uniqueHeader's " #N" suffix.
+    const rawHeader = (headers[c] ?? '').trim().slice(0, MAX_HEADER_CHARS - 8);
     let values = numeric[c]?.toArray() ?? null;
     const columnText = texts[c];
     const empty = values ? values.every(Number.isNaN) : columnText!.every((t) => t.trim() === '');

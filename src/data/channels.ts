@@ -1,5 +1,8 @@
 import type { Channel, Log } from './types';
 
+/** Longest channel header a layout will reference; the CSV reader shortens longer ones. */
+export const MAX_HEADER_CHARS = 1000;
+
 const TRAILING_UNIT = /^(.*?)\s*[([]\s*([^()[\]]+?)\s*[)\]]$/;
 
 /** "MAP (kPa)" / "MAP [kPa]" → { name: "MAP", unit: "kPa" }. */

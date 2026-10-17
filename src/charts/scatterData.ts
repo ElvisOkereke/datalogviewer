@@ -1,5 +1,5 @@
 import { findChannel } from '@/data/channels';
-import type { Log } from '@/data/types';
+import type { Channel, Log } from '@/data/types';
 import type { ScatterConfig } from '@/state/layout';
 import type { XRange } from './range';
 
@@ -11,17 +11,21 @@ export type ScatterPoints =
       y: Float64Array;
       c: Float64Array | null;
       t: Float64Array;
+      /** Headers of the channels actually plotted (the config may name them loosely). */
+      labels: { x: string; y: string; color: string | null };
       /** Points available in scope; `shown` ≤ `total` after sampling. */
       total: number;
       shown: number;
     }
   | { error: string };
 
-function valuesOf(log: Log, header: string): Float64Array | string {
+type Plottable = Channel & { values: Float64Array };
+
+function resolve(log: Log, header: string): Plottable | string {
   const ch = findChannel(log, header);
   if (!ch) return `[${header}] isn't in this log`;
   if (!ch.values) return `[${header}] is a text channel`;
-  return ch.values;
+  return ch as Plottable;
 }
 
 /**
@@ -35,16 +39,20 @@ export function scatterPoints(
   maxPoints = 200_000,
 ): ScatterPoints {
   if (!cfg.x || !cfg.y) return { error: 'Choose an X and a Y channel' };
-  const xs = valuesOf(log, cfg.x);
-  if (typeof xs === 'string') return { error: xs };
-  const ys = valuesOf(log, cfg.y);
-  if (typeof ys === 'string') return { error: ys };
-  let cs: Float64Array | null = null;
+  const xc = resolve(log, cfg.x);
+  if (typeof xc === 'string') return { error: xc };
+  const yc = resolve(log, cfg.y);
+  if (typeof yc === 'string') return { error: yc };
+  let cc: Plottable | null = null;
   if (cfg.color) {
-    const c = valuesOf(log, cfg.color);
+    const c = resolve(log, cfg.color);
     if (typeof c === 'string') return { error: c };
-    cs = c;
+    cc = c;
   }
+  const xs = xc.values;
+  const ys = yc.values;
+  const cs = cc?.values ?? null;
+  const labels = { x: xc.header, y: yc.header, color: cc?.header ?? null };
 
   const { time } = log;
   const rows: number[] = [];
@@ -68,7 +76,7 @@ export function scatterPoints(
     t[k] = time[i];
     if (c && cs) c[k] = cs[i];
   }
-  return { x, y, c, t, total: rows.length, shown };
+  return { x, y, c, t, labels, total: rows.length, shown };
 }
 
 /** First two plottable, non-time channels — a sensible scatter to start from. */

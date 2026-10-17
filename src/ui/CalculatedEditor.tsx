@@ -154,11 +154,21 @@ export function CalculatedEditor({
           <div className="grid grid-cols-[1fr_8rem] gap-3">
             <label className="flex flex-col gap-1">
               <span className="text-xs text-muted-foreground">Name</span>
-              <Input value={name} onChange={(e) => setName(e.target.value)} aria-label="Name" />
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={MAX_NAME_CHARS}
+                aria-label="Name"
+              />
             </label>
             <label className="flex flex-col gap-1">
               <span className="text-xs text-muted-foreground">Unit</span>
-              <Input value={unit} onChange={(e) => setUnit(e.target.value)} aria-label="Unit" />
+              <Input
+                value={unit}
+                onChange={(e) => setUnit(e.target.value)}
+                maxLength={MAX_NAME_CHARS}
+                aria-label="Unit"
+              />
             </label>
           </div>
           {nameProblem && <p className="-mt-1 text-xs text-destructive">{nameProblem}</p>}

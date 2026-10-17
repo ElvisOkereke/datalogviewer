@@ -124,7 +124,29 @@ describe('schema v2', () => {
       'an over-long name',
       { ...EMPTY_LAYOUT, calculated: [{ id: 'k', name: 'n'.repeat(101), expression: '1' }] },
     ],
+    [
+      'an over-long unit',
+      {
+        ...EMPTY_LAYOUT,
+        calculated: [{ id: 'k', name: 'X', unit: 'u'.repeat(101), expression: '1' }],
+      },
+    ],
     ['a bad scatter config', { ...EMPTY_LAYOUT, scatter: { x: 1 } }],
+    ['an over-long scatter channel', { ...EMPTY_LAYOUT, scatter: { x: 'x'.repeat(1001), y: 'y' } }],
+    [
+      'an over-long series channel',
+      {
+        ...EMPTY_LAYOUT,
+        panes: [
+          {
+            id: 'p',
+            size: 1,
+            sharedAxis: false,
+            series: [{ header: 'h'.repeat(1001), color: 's1' }],
+          },
+        ],
+      },
+    ],
     ['an unknown view', { ...EMPTY_LAYOUT, view: 'map' }],
     ['an unknown inspector tab', { ...EMPTY_LAYOUT, inspectorTab: 'nope' }],
   ])('rejects %s', (_label, raw) => {

@@ -24,8 +24,13 @@ const COLOR_RAMP = {
 
 type Status = { kind: 'loading' } | { kind: 'ready'; plotly: PlotlyLike } | { kind: 'error' };
 
-/** Plotly's hover templates treat %{…} specially; keep user-provided names literal. */
-const literal = (s: string) => s.replace(/%/g, '%%');
+/**
+ * Channel names come from files, and Plotly reads its text as pseudo-HTML (links, styling), so
+ * markup is escaped. Plotly decodes these entities back to plain characters when it draws.
+ */
+const text = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+/** Hover templates also expand %{…}; Plotly has no escape for it, but &#37; draws as "%". */
+const hoverText = (s: string) => text(s).replace(/%/g, '&#37;');
 
 export function ScatterView({
   log,
@@ -76,15 +81,15 @@ export function ScatterView({
 
   useEffect(() => {
     const el = plotRef.current;
-    if (status.kind !== 'ready' || !el || 'error' in points || !cfg) return;
+    if (status.kind !== 'ready' || !el || 'error' in points) return;
     const { plotly } = status;
-    const colour = points.c;
+    const { labels, c: colour } = points;
     const hover =
-      `${literal(cfg.x)}: %{x}<br>${literal(cfg.y)}: %{y}` +
-      (colour && cfg.color ? `<br>${literal(cfg.color)}: %{marker.color}` : '') +
+      `${hoverText(labels.x)}: %{x}<br>${hoverText(labels.y)}: %{y}` +
+      (colour && labels.color ? `<br>${hoverText(labels.color)}: %{marker.color}` : '') +
       '<br>t: %{customdata}<extra></extra>';
     const axis = (title: string) => ({
-      title: { text: title },
+      title: { text: text(title) },
       gridcolor: theme.grid,
       zerolinecolor: theme.border,
       linecolor: theme.border,
@@ -106,7 +111,11 @@ export function ScatterView({
             ...(colour && {
               colorscale: COLOR_RAMP[theme.mode],
               showscale: true,
-              colorbar: { title: { text: cfg.color }, outlinewidth: 0, thickness: 12 },
+              colorbar: {
+                title: { text: text(labels.color ?? '') },
+                outlinewidth: 0,
+                thickness: 12,
+              },
             }),
           },
         },
@@ -117,8 +126,8 @@ export function ScatterView({
         font: { family: theme.font, color: theme.muted, size: 11 },
         margin: { l: 64, r: 16, t: 12, b: 48 },
         hovermode: 'closest',
-        xaxis: axis(cfg.x),
-        yaxis: axis(cfg.y),
+        xaxis: axis(labels.x),
+        yaxis: axis(labels.y),
       },
       {
         responsive: true,
@@ -126,7 +135,7 @@ export function ScatterView({
         modeBarButtonsToRemove: ['toImage', 'lasso2d', 'select2d'],
       },
     );
-  }, [status, points, cfg, theme]);
+  }, [status, points, theme]);
 
   // Hand the PNG exporter to the toolbar while a plot is showing.
   useEffect(() => {

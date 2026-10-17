@@ -61,3 +61,26 @@ test('a missing channel shows why instead of an empty plot', async () => {
   render(<ScatterView log={log} />);
   expect(await screen.findByText("[Boost] isn't in this log")).toBeInTheDocument();
 });
+
+test('channel names reach Plotly as text, never as markup', async () => {
+  const react = vi.fn(() => Promise.resolve());
+  load.mockResolvedValue({ react, purge: vi.fn(), downloadImage: vi.fn() });
+  const evil = parseCsvText(
+    'Time (s),<a href="https://x.test">RPM</a>,MAP %{x}\n0,800,30\n1,900,40',
+    { fileName: 'e.csv', encoding: 'utf-8' },
+  );
+  useLayoutStore.setState({
+    scatter: { x: '<a href="https://x.test">RPM</a>', y: 'MAP %{x}' },
+  });
+  render(<ScatterView log={evil} />);
+  await waitFor(() => expect(react).toHaveBeenCalled());
+  const [, data, layout] = react.mock.calls[0] as unknown as [
+    unknown,
+    { hovertemplate: string }[],
+    { xaxis: { title: { text: string } }; yaxis: { title: { text: string } } },
+  ];
+  expect(layout.xaxis.title.text).toBe('&lt;a href="https://x.test"&gt;RPM&lt;/a&gt;');
+  expect(layout.yaxis.title.text).toBe('MAP %{x}');
+  expect(data[0].hovertemplate).not.toContain('<a');
+  expect(data[0].hovertemplate).toContain('MAP &#37;{x}: %{y}');
+});

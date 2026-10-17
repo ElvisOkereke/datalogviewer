@@ -37,6 +37,15 @@ describe('scatterPoints', () => {
     expect(r.x[99]).toBe(990);
   });
 
+  test('labels name the channels actually plotted, not the loose name that found them', () => {
+    const r = scatterPoints(log, { x: 'rpm', y: 'MAP', color: 'afr' }, null);
+    if ('error' in r) throw new Error(r.error);
+    expect(r.labels).toEqual({ x: 'RPM', y: 'MAP (kPa)', color: 'AFR' });
+    const plain = scatterPoints(log, { x: 'RPM', y: 'AFR' }, null);
+    if ('error' in plain) throw new Error(plain.error);
+    expect(plain.labels).toEqual({ x: 'RPM', y: 'AFR', color: null });
+  });
+
   test('missing or empty channels explain themselves', () => {
     expect(scatterPoints(log, { x: 'Boost', y: 'RPM' }, null)).toEqual({
       error: "[Boost] isn't in this log",

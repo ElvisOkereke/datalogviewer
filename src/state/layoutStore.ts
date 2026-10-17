@@ -6,6 +6,8 @@ import {
   defaultLayout,
   EMPTY_LAYOUT,
   MAX_CALCULATED,
+  MAX_EXPRESSION_CHARS,
+  MAX_NAME_CHARS,
   MAX_PANES,
   MAX_SERIES_PER_PANE,
   migrateLayout,
@@ -38,6 +40,15 @@ export interface LayoutState extends PersistedLayout {
   removeCalculated(id: string): void;
   setScatter(cfg: ScatterConfig | null): void;
   replaceLayout(layout: PersistedLayout): void;
+}
+
+/** Trims a definition to the limits migrateLayout enforces, so what is saved always loads back. */
+function clampDef<T extends Partial<Omit<CalculatedDef, 'id'>>>(def: T): T {
+  const out = { ...def };
+  if (out.name !== undefined) out.name = out.name.slice(0, MAX_NAME_CHARS);
+  if (out.unit !== undefined) out.unit = out.unit.slice(0, MAX_NAME_CHARS);
+  if (out.expression !== undefined) out.expression = out.expression.slice(0, MAX_EXPRESSION_CHARS);
+  return out;
 }
 
 export const LAYOUT_KEY = 'dlv.layout.v2';
@@ -165,11 +176,15 @@ export const useLayoutStore = create<LayoutState>()(
         addCalculated(def) {
           if (get().calculated.length >= MAX_CALCULATED) return '';
           const id = `k-${Math.random().toString(36).slice(2, 10)}`;
-          set({ calculated: [...get().calculated, { id, ...def }] });
+          set({ calculated: [...get().calculated, { id, ...clampDef(def) }] });
           return id;
         },
         updateCalculated(id, patch) {
-          set({ calculated: get().calculated.map((d) => (d.id === id ? { ...d, ...patch } : d)) });
+          set({
+            calculated: get().calculated.map((d) =>
+              d.id === id ? { ...d, ...clampDef(patch) } : d,
+            ),
+          });
         },
         removeCalculated(id) {
           set({ calculated: get().calculated.filter((d) => d.id !== id) });

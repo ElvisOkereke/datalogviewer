@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { parseCsvText } from '@/io/csv/parseCsv';
-import { EMPTY_LAYOUT } from '@/state/layout';
+import { EMPTY_LAYOUT, migrateLayout } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
 
 const log = parseCsvText('Time (s),RPM,MAP (kPa),AFR\n0,800,30,14.7\n0.05,810,31,14.6', {
@@ -110,6 +110,22 @@ test('a new series takes a colour not used in any pane (colour follows the chann
 });
 
 describe('v2 actions', () => {
+  test('calculated definitions are clamped so the saved layout always loads back', () => {
+    const id = layout().addCalculated({
+      name: 'n'.repeat(150),
+      unit: 'u'.repeat(150),
+      expression: 'x'.repeat(3000),
+    });
+    expect(layout().calculated[0]).toMatchObject({
+      name: 'n'.repeat(100),
+      unit: 'u'.repeat(100),
+      expression: 'x'.repeat(2000),
+    });
+    layout().updateCalculated(id, { name: 'm'.repeat(150) });
+    expect(layout().calculated[0].name).toBe('m'.repeat(100));
+    expect(migrateLayout(JSON.parse(JSON.stringify(layout()))).calculated).toHaveLength(1);
+  });
+
   test('calculated channel definitions can be added, updated and removed', () => {
     const id = layout().addCalculated({ name: 'Lambda', expression: '[AFR] / 14.7' });
     expect(layout().calculated).toEqual([{ id, name: 'Lambda', expression: '[AFR] / 14.7' }]);

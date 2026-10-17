@@ -1,6 +1,6 @@
 import { isSeriesColor, nextSeriesColor, type SeriesColor } from '@/charts/palette';
 import type { CalculatedDef } from '@/data/calculated';
-import { findChannel } from '@/data/channels';
+import { findChannel, MAX_HEADER_CHARS } from '@/data/channels';
 import type { Channel, Log } from '@/data/types';
 
 export interface SeriesRef {
@@ -108,8 +108,10 @@ export function bindLayout(layout: PersistedLayout, log: Log): BoundPane[] {
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 const optionalNumber = (v: unknown) => v === undefined || typeof v === 'number';
 
+const isHeader = (v: unknown): v is string => typeof v === 'string' && v.length <= MAX_HEADER_CHARS;
+
 function isSeriesRef(v: unknown): v is SeriesRef {
-  if (!isObject(v) || typeof v.header !== 'string' || typeof v.color !== 'string') return false;
+  if (!isObject(v) || !isHeader(v.header) || typeof v.color !== 'string') return false;
   if (!isSeriesColor(v.color)) return false;
   if (v.scale === undefined) return true;
   return isObject(v.scale) && optionalNumber(v.scale.min) && optionalNumber(v.scale.max);
@@ -139,14 +141,15 @@ function isCalculatedDef(v: unknown): v is CalculatedDef {
     v.name.length <= MAX_NAME_CHARS &&
     typeof v.expression === 'string' &&
     v.expression.length <= MAX_EXPRESSION_CHARS &&
-    optionalString(v.unit)
+    optionalString(v.unit) &&
+    (v.unit === undefined || (v.unit as string).length <= MAX_NAME_CHARS)
   );
 }
 
 function isScatter(v: unknown): v is ScatterConfig | null {
   return (
     v === null ||
-    (isObject(v) && typeof v.x === 'string' && typeof v.y === 'string' && optionalString(v.color))
+    (isObject(v) && isHeader(v.x) && isHeader(v.y) && (v.color === undefined || isHeader(v.color)))
   );
 }
 
