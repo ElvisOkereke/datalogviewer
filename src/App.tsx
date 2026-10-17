@@ -1,3 +1,4 @@
+import { LoadScreen } from '@/ui/LoadScreen';
 import { useTheme } from '@/ui/useTheme';
 
 export function App() {
@@ -19,9 +20,7 @@ export function App() {
           Theme: {pref}
         </button>
       </header>
-      <main className="grid flex-1 place-items-center text-muted-foreground">
-        Drop a CSV log to begin.
-      </main>
+      <LoadScreen />
     </div>
   );
 }
