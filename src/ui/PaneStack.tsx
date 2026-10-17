@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { Log } from '@/data/types';
 import { cn } from '@/lib/utils';
-import { bindLayout, type BoundPane } from '@/state/layout';
+import { bindLayout, selectedPaneId, type BoundPane } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
 import { useViewStore } from '@/state/viewStore';
 import { ErrorBoundary } from './ErrorBoundary';
@@ -128,6 +128,8 @@ export function PaneStack({ log, resizable = true }: { log: Log; resizable?: boo
     () => bindLayout({ ...useLayoutStore.getState(), panes: layoutPanes }, log),
     [layoutPanes, log],
   );
+  // Before anything is clicked, the first chart is the selected one (and the sidebar's target).
+  const selectedId = selectedPaneId(layoutPanes, focusedPaneId);
   // Remount the group when panes come or go so it picks up the new default sizes.
   const groupKey = panes.map((p) => p.id).join('|');
 
@@ -165,7 +167,7 @@ export function PaneStack({ log, resizable = true }: { log: Log; resizable?: boo
             >
               <PaneMenu pane={pane} />
               <ErrorBoundary resetKey={log.id} label="this chart">
-                <ChartPane pane={pane} log={log} focused={pane.id === focusedPaneId} />
+                <ChartPane pane={pane} log={log} focused={pane.id === selectedId} />
               </ErrorBoundary>
             </DropTarget>
           </Panel>,

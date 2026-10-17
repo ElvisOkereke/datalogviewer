@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { filterByQuery } from '@/data/search';
 import type { Channel, Log } from '@/data/types';
 import { cn } from '@/lib/utils';
+import { selectedPaneId } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
 import { useViewStore } from '@/state/viewStore';
 
@@ -12,27 +13,40 @@ export const CHANNEL_MIME = 'application/x-dlv-channel';
 const VIRTUALIZE_ABOVE = 200;
 const ROW_PX = 28;
 
-/** Plots a channel in the focused pane (or the first pane, creating one if needed). */
-export function plotChannel(header: string): void {
+/** Whether a channel is in the selected chart, only in other charts, or nowhere. */
+type RowState = { state: 'here' | 'elsewhere' | 'off'; colour: string | null };
+
+/**
+ * Toggles a channel on the selected chart (the focused pane, else the first; a pane is created
+ * when there are none): removes it if that chart already shows it, otherwise adds it.
+ */
+export function toggleChannel(header: string): void {
   const layout = useLayoutStore.getState();
-  const focused = useViewStore.getState().focusedPaneId;
   const target =
-    layout.panes.find((p) => p.id === focused)?.id ?? layout.panes[0]?.id ?? layout.addPane();
-  layout.addSeries(target, header);
+    selectedPaneId(layout.panes, useViewStore.getState().focusedPaneId) ?? layout.addPane();
+  const pane = useLayoutStore.getState().panes.find((p) => p.id === target);
+  if (pane?.series.some((s) => s.header === header)) layout.removeSeries(target, header);
+  else layout.addSeries(target, header);
 }
 
 export function Sidebar({ log, onPlotted }: { log: Log; onPlotted?: () => void }) {
   const [query, setQuery] = useState('');
   const panes = useLayoutStore((s) => s.panes);
+  const focusedPaneId = useViewStore((s) => s.focusedPaneId);
   const mode = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
   const timeId = log.timeSource.kind === 'column' ? log.timeSource.channelId : null;
   const channels = useMemo(() => filterByQuery(log.channels, query, (c) => c.header), [log, query]);
-  const colourOf = (header: string) => {
+
+  const targetId = selectedPaneId(panes, focusedPaneId);
+  const targetIndex = panes.findIndex((p) => p.id === targetId);
+  const stateOf = (header: string): RowState => {
+    const here = panes[targetIndex]?.series.find((s) => s.header === header);
+    if (here) return { state: 'here', colour: resolveSeriesColor(here.color, mode) };
     for (const p of panes) {
       const s = p.series.find((x) => x.header === header);
-      if (s) return resolveSeriesColor(s.color, mode);
+      if (s) return { state: 'elsewhere', colour: resolveSeriesColor(s.color, mode) };
     }
-    return null;
+    return { state: 'off', colour: null };
   };
 
   return (
@@ -44,7 +58,10 @@ export function Sidebar({ log, onPlotted }: { log: Log; onPlotted?: () => void }
         aria-label="Search channels"
         className="h-8 text-xs"
       />
-      <ChannelList channels={channels} timeId={timeId} colourOf={colourOf} onPlotted={onPlotted} />
+      <p className="px-1 text-[11px] text-muted-foreground" aria-live="polite">
+        {panes.length ? `Chart ${targetIndex + 1} of ${panes.length}` : 'No charts yet'}
+      </p>
+      <ChannelList channels={channels} timeId={timeId} stateOf={stateOf} onPlotted={onPlotted} />
     </aside>
   );
 }
@@ -52,12 +69,12 @@ export function Sidebar({ log, onPlotted }: { log: Log; onPlotted?: () => void }
 function ChannelList({
   channels,
   timeId,
-  colourOf,
+  stateOf,
   onPlotted,
 }: {
   channels: Channel[];
   timeId: string | null;
-  colourOf(header: string): string | null;
+  stateOf(header: string): RowState;
   onPlotted?: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -73,7 +90,7 @@ function ChannelList({
       key={c.id}
       channel={c}
       isTime={c.id === timeId}
-      colour={colourOf(c.header)}
+      row={stateOf(c.header)}
       onPlotted={onPlotted}
     />
   );
@@ -102,12 +119,12 @@ function ChannelList({
 function ChannelRow({
   channel,
   isTime,
-  colour,
+  row,
   onPlotted,
 }: {
   channel: Channel;
   isTime: boolean;
-  colour: string | null;
+  row: RowState;
   onPlotted?: () => void;
 }) {
   const plottable = channel.kind === 'numeric';
@@ -116,41 +133,60 @@ function ChannelRow({
     e.dataTransfer.effectAllowed = 'copy';
   };
   return (
-    <button
-      type="button"
-      role="listitem"
-      data-testid="channel-row"
-      aria-disabled={!plottable}
-      draggable={plottable}
-      title={plottable ? undefined : 'Text channel — shown in the table and Inspector'}
-      onClick={() => {
-        if (!plottable) return;
-        plotChannel(channel.header);
-        onPlotted?.();
-      }}
-      onDragStart={plottable ? onDragStart : undefined}
-      className={cn(
-        'flex h-7 w-full items-center gap-2 rounded-sm px-1.5 text-left text-xs',
-        plottable ? 'hover:bg-accent' : 'cursor-default opacity-50',
-        colour && 'bg-accent/60',
-      )}
-    >
-      <span
-        className="size-2.5 shrink-0 rounded-[2px] bg-border"
-        style={colour ? { background: colour } : undefined}
-        aria-hidden
-      />
-      <span className="truncate">{channel.name}</span>
-      {isTime && (
-        <span className="rounded-sm bg-muted px-1 text-[10px] text-muted-foreground uppercase">
-          time
-        </span>
-      )}
-      {channel.unit && (
-        <span className="num ml-auto shrink-0 text-[11px] text-muted-foreground">
-          {channel.unit}
-        </span>
-      )}
-    </button>
+    <div role="listitem">
+      <button
+        type="button"
+        data-testid="channel-row"
+        data-state={row.state}
+        aria-pressed={row.state === 'here'}
+        aria-disabled={!plottable}
+        draggable={plottable}
+        title={
+          !plottable
+            ? 'Text channel — shown in the table and Inspector'
+            : row.state === 'elsewhere'
+              ? 'Shown in another chart — click to add it to this one too'
+              : undefined
+        }
+        onClick={() => {
+          if (!plottable) return;
+          toggleChannel(channel.header);
+          onPlotted?.();
+        }}
+        onDragStart={plottable ? onDragStart : undefined}
+        className={cn(
+          'flex h-7 w-full items-center gap-2 rounded-sm px-1.5 text-left text-xs',
+          plottable ? 'hover:bg-accent' : 'cursor-default opacity-50',
+          row.state === 'here' && 'bg-accent/70 font-medium',
+        )}
+      >
+        <span
+          className={cn(
+            'size-2.5 shrink-0 rounded-[2px]',
+            row.state === 'off' && 'bg-border',
+            row.state === 'elsewhere' && 'border-[1.5px] bg-transparent',
+          )}
+          style={
+            row.state === 'here'
+              ? { background: row.colour ?? undefined }
+              : row.state === 'elsewhere'
+                ? { borderColor: row.colour ?? undefined }
+                : undefined
+          }
+          aria-hidden
+        />
+        <span className="truncate">{channel.name}</span>
+        {isTime && (
+          <span className="rounded-sm bg-muted px-1 text-[10px] text-muted-foreground uppercase">
+            time
+          </span>
+        )}
+        {channel.unit && (
+          <span className="num ml-auto shrink-0 text-[11px] text-muted-foreground">
+            {channel.unit}
+          </span>
+        )}
+      </button>
+    </div>
   );
 }

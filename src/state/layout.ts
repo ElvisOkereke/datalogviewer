@@ -120,3 +120,8 @@ export function migrateLayout(raw: unknown): PersistedLayout {
   }
   return EMPTY_LAYOUT;
 }
+
+/** The chart the sidebar targets: the focused pane if it still exists, else the first pane. */
+export function selectedPaneId(panes: PaneLayout[], focusedPaneId: string | null): string | null {
+  return panes.find((p) => p.id === focusedPaneId)?.id ?? panes[0]?.id ?? null;
+}
