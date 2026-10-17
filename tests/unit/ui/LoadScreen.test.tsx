@@ -8,6 +8,7 @@ import { LoadScreen } from '@/ui/LoadScreen';
 vi.mock('@/charts/ChartPane', () => ({ ChartPane: () => <div data-testid="chart-pane" /> }));
 
 beforeEach(() => useLogStore.setState({ logs: {}, activeLogId: null, status: { kind: 'idle' } }));
+vi.mock('@/charts/OverviewStrip', () => ({ OverviewStrip: () => null }));
 
 test('offers file opening and both samples', () => {
   render(<LoadScreen />);

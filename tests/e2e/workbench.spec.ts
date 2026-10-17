@@ -116,3 +116,34 @@ test('click pins the cursor; arrow keys step it; Escape releases it', async ({ p
   await page.mouse.move(5, 5);
   await expect.poll(() => legendValues(page)).toEqual(['—', '—', '—']);
 });
+
+test('overview strip shows and moves the visible window', async ({ page }) => {
+  await loadDemo(page);
+  const strip = page.getByTestId('overview').locator('.u-over');
+  const win = page.getByTestId('overview-window');
+  const stripBox = (await strip.boundingBox())!;
+  const fullBox = (await win.boundingBox())!;
+  expect(Math.abs(fullBox.width - stripBox.width)).toBeLessThanOrEqual(2);
+
+  await hoverPlot(page, 0.5);
+  for (let i = 0; i < 4; i++) await page.mouse.wheel(0, -100);
+  await expect.poll(async () => (await win.boundingBox())!.width).toBeLessThan(fullBox.width * 0.6);
+
+  const before = await xRange(page);
+  const box = (await win.boundingBox())!;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + box.width / 2, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 100, y, { steps: 5 });
+  await page.mouse.up();
+  const after = await xRange(page);
+  expect(after.min).toBeGreaterThan(before.min);
+  expect(after.max - after.min).toBeCloseTo(before.max - before.min, 5);
+
+  const moved = (await win.boundingBox())!;
+  await page.mouse.move(moved.x + 2, y);
+  await page.mouse.down();
+  await page.mouse.move(moved.x + 52, y, { steps: 5 });
+  await page.mouse.up();
+  await expect.poll(async () => (await win.boundingBox())!.width).toBeLessThan(moved.width - 30);
+});

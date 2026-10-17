@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type DragEvent } from 'react';
 import { ChartPane } from '@/charts/ChartPane';
+import { OverviewStrip } from '@/charts/OverviewStrip';
 import { bindLayout } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
 import { useViewStore } from '@/state/viewStore';
@@ -262,6 +263,14 @@ function TemporaryCharts({ log }: { log: Log }) {
           <ChartPane pane={p} log={log} focused={p.id === focusedPaneId} />
         </div>
       ))}
+      <OverviewStrip
+        log={log}
+        channel={
+          bound[0]?.series.find((s) => s.channel)?.channel ??
+          log.channels.find((c) => c.kind === 'numeric') ??
+          null
+        }
+      />
     </div>
   );
 }
