@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+- Calculated channels: formulas over channels with arithmetic, comparisons, logic and functions (abs, min, max, clamp, if, round, sqrt, delta, rate, smooth, lag); live validation with error positions.
+- Range selection: Shift+drag selects a range (Z zooms to it, Esc clears) with min/mean/max/std per channel in a new Range tab.
+- Markers: M drops a marker at the cursor; listed in a Markers tab, saved per log.
+- Layout files: save and open layouts (charts, calculated channels) as .dlvlayout.json.
+- Layout schema v2 (older saved layouts are upgraded automatically), with size limits.
+
 ## [0.1.0] - 2026-10-17
 
 First public release: the Tier 1 Workbench.

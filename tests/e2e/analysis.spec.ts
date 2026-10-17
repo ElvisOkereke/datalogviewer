@@ -37,3 +37,63 @@ test('markers: M drops one, it is listed, survives a reload, and stays with its 
   await expect(page.getByRole('banner')).toContainText('autodata-sheet2.csv');
   await expect(page.getByTestId('marker-row')).toHaveCount(0);
 });
+
+test('calculated channels: create, plot, save to a layout file and open it again', async ({
+  page,
+}) => {
+  await loadDemo(page);
+  await page.getByRole('button', { name: 'New calculated channel' }).click();
+  const dialog = page.getByRole('dialog', { name: 'New calculated channel' });
+  await dialog.getByLabel('Name').fill('Lambda');
+  await dialog.getByLabel('Expression').fill('[AFR] / 14.7');
+  await expect(dialog.getByText(/min .* max .* values/)).toBeVisible();
+  await dialog.getByRole('button', { name: 'Save' }).click();
+
+  const row = page.getByTestId('channel-row').filter({ hasText: 'Lambda' });
+  await expect(row).toContainText('fx');
+  await row.click();
+  const lambda = page
+    .getByTestId('chart-pane')
+    .nth(0)
+    .getByRole('button', { name: /Lambda/ });
+  await expect(lambda).toBeVisible();
+
+  await hoverPlot(page, 0.5);
+  const afr = Number(
+    await page.getByTestId('chart-pane').nth(1).getByTestId('legend-value').first().textContent(),
+  );
+  const lambdaValue = Number(await lambda.getByTestId('legend-value').textContent());
+  expect(lambdaValue).toBeCloseTo(afr / 14.7, 2);
+
+  await page.getByRole('button', { name: 'Layout', exact: true }).click();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('menuitem', { name: 'Save layout to file…' }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe('datalogviewer-layout.dlvlayout.json');
+  const path = await download.path();
+
+  await page.getByRole('button', { name: 'Options for Lambda' }).click();
+  await page.getByRole('menuitem', { name: 'Delete' }).click();
+  await expect(page.getByTestId('channel-row').filter({ hasText: 'Lambda' })).toHaveCount(0);
+
+  await page.getByLabel('Open layout file').setInputFiles(path!);
+  await page.getByRole('button', { name: 'Replace' }).click();
+  await expect(page.getByTestId('channel-row').filter({ hasText: 'Lambda' })).toBeVisible();
+});
+
+test('range statistics: Shift+drag shows the Range tab with values', async ({ page }) => {
+  await loadDemo(page);
+  const box = (await page.getByTestId('chart-pane').first().locator('.u-over').boundingBox())!;
+  const y = box.y + box.height / 2;
+  await page.keyboard.down('Shift');
+  await page.mouse.move(box.x + box.width * 0.2, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.6, y, { steps: 5 });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+
+  await expect(page.getByRole('tab', { name: 'Range', selected: true })).toBeVisible();
+  const rpm = page.getByTestId('range-row').filter({ hasText: 'Engine Speed' });
+  await expect(rpm).toContainText(/\d,\d{3}/);
+  await expect(page.getByText(/samples/)).toBeVisible();
+});
