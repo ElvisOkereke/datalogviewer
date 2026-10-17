@@ -6,8 +6,13 @@ on:
     branches-ignore: [main]
   workflow_call:
 
+permissions:
+  contents: read
+
 jobs:
   check:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
