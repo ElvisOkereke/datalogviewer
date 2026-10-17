@@ -62,7 +62,7 @@ describe('logStore', () => {
   });
 
   test('loadSample fetches the bundled file and parses it', async () => {
-    const fetchFn = vi.fn(async (_input: RequestInfo | URL) => new Response('Time,RPM\n0,800'));
+    const fetchFn = vi.fn<typeof fetch>(async () => new Response('Time,RPM\n0,800'));
     const parse = vi.fn<ParseFn>(async (f) => fakeLog('S', f.name));
     const store = createLogStore(parse, fetchFn as unknown as typeof fetch);
     await store.getState().loadSample(SAMPLES[0]);
