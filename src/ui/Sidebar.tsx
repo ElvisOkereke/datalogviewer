@@ -127,7 +127,7 @@ function ChannelRow({
   row: RowState;
   onPlotted?: () => void;
 }) {
-  const plottable = channel.kind === 'numeric';
+  const plottable = channel.kind !== 'text';
   const onDragStart = (e: DragEvent) => {
     e.dataTransfer.setData(CHANNEL_MIME, channel.header);
     e.dataTransfer.effectAllowed = 'copy';

@@ -1,4 +1,5 @@
 import { isSeriesColor, nextSeriesColor, type SeriesColor } from '@/charts/palette';
+import type { CalculatedDef } from '@/data/calculated';
 import { findChannel } from '@/data/channels';
 import type { Channel, Log } from '@/data/types';
 
@@ -19,13 +20,8 @@ export interface PaneLayout {
 export type ViewMode = 'chart' | 'scatter' | 'table';
 export type InspectorTab = 'cursor' | 'range' | 'markers';
 
-/** A formula channel; evaluated per log (src/data/calculated.ts). */
-export interface CalculatedDef {
-  id: string;
-  name: string;
-  unit?: string;
-  expression: string;
-}
+/** A formula channel; evaluated per log. */
+export type { CalculatedDef };
 
 /** Scatter view axes, by channel header. */
 export interface ScatterConfig {
