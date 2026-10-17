@@ -2,14 +2,22 @@ import { useEffect } from 'react';
 import { useViewStore } from '@/state/viewStore';
 import { shortcutFor } from './shortcuts';
 
-const isEditable = (t: EventTarget | null) =>
-  t instanceof HTMLElement && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
+const OWN_KEYS =
+  '[role=menu],[role=menuitem],[role=dialog],[role=alertdialog],[role=group],[role=radiogroup],[role=listbox],[data-radix-popper-content-wrapper]';
+
+/** True when the key belongs to whatever has focus (a field, menu, dialog, button group). */
+export function isShortcutBlocked(target: EventTarget | null, defaultPrevented: boolean): boolean {
+  if (defaultPrevented) return true;
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return true;
+  return target.closest(OWN_KEYS) !== null;
+}
 
 /** Window-level keyboard shortcuts for the Workbench (see ShortcutsDialog for the list). */
 export function useShortcuts(onHelp: () => void): void {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      const action = shortcutFor(e, isEditable(e.target));
+      const action = shortcutFor(e, isShortcutBlocked(e.target, e.defaultPrevented));
       if (!action) return;
       const view = useViewStore.getState();
       const n = view.time?.length ?? 0;

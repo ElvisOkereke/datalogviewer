@@ -34,3 +34,9 @@ test('search filters channels', async () => {
   await userEvent.type(screen.getByLabelText('Search Inspector'), 'rp');
   expect(screen.getAllByTestId('inspector-row')).toHaveLength(1);
 });
+
+test('a cursor beyond the end of the log is treated as no cursor', () => {
+  useViewStore.setState({ cursor: 6700, pinned: true });
+  render(<Inspector log={log} />);
+  expect(screen.getByText('Hover a chart')).toBeInTheDocument();
+});

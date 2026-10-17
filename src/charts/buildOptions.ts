@@ -28,15 +28,18 @@ export function seriesRange(
   return [manual?.min ?? lo, manual?.max ?? hi];
 }
 
+// Constructing a formatter per call (toLocaleString with options) is ~40× slower in browsers.
+const INTEGER = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+const DECIMAL = new Intl.NumberFormat('en-US', { maximumFractionDigits: 3 });
+
 export function formatValue(v: number | null | undefined): string {
   if (v == null || Number.isNaN(v)) return '—';
-  if (Math.abs(v) >= 1000) return Math.round(v).toLocaleString('en-US');
-  return v.toLocaleString('en-US', { maximumFractionDigits: 3 });
+  return Math.abs(v) >= 1000 ? INTEGER.format(Math.round(v)) : DECIMAL.format(v);
 }
 
 export function formatTime(t: number, source: TimeSource): string {
   if (source.kind === 'index') return `row ${Math.round(t)}`;
-  return `${t.toLocaleString('en-US', { maximumFractionDigits: 3 })} s`;
+  return `${DECIMAL.format(t)} s`;
 }
 
 const scaleKey = (s: BoundSeries, shared: boolean) => (shared ? 'y' : `y:${s.header}`);

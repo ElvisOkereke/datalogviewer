@@ -31,3 +31,19 @@ test('healthy children render normally', () => {
   );
   expect(screen.getByText('fine')).toBeInTheDocument();
 });
+
+test('a new resetKey (e.g. another log) clears the fallback', () => {
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+  const { rerender } = render(
+    <ErrorBoundary label="the charts" resetKey="log-a">
+      <Boom />
+    </ErrorBoundary>,
+  );
+  expect(screen.getByRole('alert')).toBeInTheDocument();
+  rerender(
+    <ErrorBoundary label="the charts" resetKey="log-b">
+      <p>recovered</p>
+    </ErrorBoundary>,
+  );
+  expect(screen.getByText('recovered')).toBeInTheDocument();
+});

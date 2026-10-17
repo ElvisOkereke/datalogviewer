@@ -164,7 +164,7 @@ export function PaneStack({ log, resizable = true }: { log: Log; resizable?: boo
               onChannel={(header) => useLayoutStore.getState().addSeries(pane.id, header)}
             >
               <PaneMenu pane={pane} />
-              <ErrorBoundary label="this chart">
+              <ErrorBoundary resetKey={log.id} label="this chart">
                 <ChartPane pane={pane} log={log} focused={pane.id === focusedPaneId} />
               </ErrorBoundary>
             </DropTarget>

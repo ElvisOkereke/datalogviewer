@@ -95,7 +95,16 @@ export function ChartPane({ pane, log, focused }: { pane: BoundPane; log: Log; f
       axisHeader,
     });
     opts.plugins = [navigation(log.time)];
+    // uPlot keeps the crosshair's pixel position across zoom, resize and rebuild; once the new
+    // x-scale is live (it is applied lazily), move a pinned crosshair back onto its sample.
+    const placePinned = (u: uPlot) => {
+      const { pinned, cursor } = useViewStore.getState();
+      if (pinned && cursor != null && cursor < log.time.length) {
+        u.setCursor({ left: u.valToPos(log.time[cursor], 'x'), top: u.cursor.top ?? 0 });
+      }
+    };
     opts.hooks = {
+      setScale: [(u, key) => key === 'x' && placePinned(u)],
       setCursor: [
         (u) => {
           const left = u.cursor.left;
@@ -153,7 +162,12 @@ export function ChartPane({ pane, log, focused }: { pane: BoundPane; log: Log; f
         if (!u) return;
         const r = s.range ?? s.bounds;
         if (r && (s.range !== prev.range || s.bounds !== prev.bounds)) showRef.current(r);
-        if (s.pinned && s.cursor != null && (s.cursor !== prev.cursor || !prev.pinned)) {
+        if (
+          s.pinned &&
+          s.cursor != null &&
+          s.cursor < log.time.length &&
+          (s.cursor !== prev.cursor || !prev.pinned)
+        ) {
           u.setCursor({ left: u.valToPos(log.time[s.cursor], 'x'), top: u.cursor.top ?? 0 });
         }
       }),

@@ -137,3 +137,9 @@ describe('buildPaneOptions', () => {
     expect(data).toHaveLength(2);
   });
 });
+
+test('formatting is fast enough for wide tables (cached number formatters)', () => {
+  const start = performance.now();
+  for (let i = 0; i < 100_000; i++) formatValue(i * 1.2345);
+  expect(performance.now() - start).toBeLessThan(250);
+});

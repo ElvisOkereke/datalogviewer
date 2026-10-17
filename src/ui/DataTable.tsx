@@ -15,7 +15,8 @@ const cell = (ch: Channel, i: number) =>
 /** Virtualized raw-data view; the cursor row is highlighted and clicking a row pins it. */
 export function DataTable({ log }: { log: Log }) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const cursor = useViewStore((s) => s.cursor);
+  const raw = useViewStore((s) => s.cursor);
+  const cursor = raw != null && raw < log.rowCount ? raw : null;
   const timeId = log.timeSource.kind === 'column' ? log.timeSource.channelId : null;
   const columns = useMemo(() => log.channels.filter((c) => c.id !== timeId), [log, timeId]);
   const width = TIME_COL_PX + columns.length * COL_PX;

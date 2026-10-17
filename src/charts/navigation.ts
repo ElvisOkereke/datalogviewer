@@ -12,6 +12,20 @@ export interface NavigationHandlers {
   isPinned(): boolean;
 }
 
+/** Wheel deltas in lines/pages are converted to pixels; one mouse notch is about 100 px. */
+const DELTA_MODE_PX = [1, 33, 100];
+const WHEEL_ZOOM_PER_PX = 0.0022;
+
+/**
+ * Zoom factor for a wheel event: proportional to the scroll distance (gentle for trackpads,
+ * about 25% per mouse notch), clamped, and null for purely horizontal scrolling.
+ */
+export function wheelZoomFactor(deltaY: number, deltaMode: number): number | null {
+  if (!deltaY) return null;
+  const px = deltaY * (DELTA_MODE_PX[deltaMode] ?? 1);
+  return Math.exp(Math.min(Math.max(px, -100), 100) * WHEEL_ZOOM_PER_PX);
+}
+
 /** Pointer travel below this is a click (pin the cursor), above it a drag (pan). */
 const CLICK_SLOP_PX = 4;
 
@@ -65,8 +79,10 @@ export function navigationPlugin(h: NavigationHandlers): uPlot.Plugin {
           over.addEventListener(
             'wheel',
             (e) => {
+              const factor = wheelZoomFactor(e.deltaY, e.deltaMode);
+              if (factor === null) return;
               e.preventDefault();
-              h.zoomAt(u.posToVal(e.offsetX, 'x'), e.deltaY > 0 ? 1.25 : 0.8);
+              h.zoomAt(u.posToVal(e.offsetX, 'x'), factor);
             },
             { passive: false },
           );
@@ -128,7 +144,9 @@ export function navigationPlugin(h: NavigationHandlers): uPlot.Plugin {
           const min = u.posToVal(u.select.left, 'x');
           const max = u.posToVal(u.select.left + u.select.width, 'x');
           u.setSelect({ left: 0, top: 0, width: 0, height: 0 }, false);
-          if (max > min) h.setRange({ min, max });
+          // Apply after uPlot finishes its mouseup: changing the range re-places a pinned cursor,
+          // and doing that mid-drag would re-enter uPlot's selection.
+          if (max > min) queueMicrotask(() => h.setRange({ min, max }));
         },
       ],
     },

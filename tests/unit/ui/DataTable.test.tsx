@@ -48,3 +48,11 @@ test('the cursor row is selected', () => {
   expect(dataRow(2)).toHaveAttribute('aria-selected', 'true');
   expect(dataRow(1)).toHaveAttribute('aria-selected', 'false');
 });
+
+test('a cursor beyond the end of the log selects nothing and does not throw', () => {
+  useViewStore.setState({ cursor: 6700 });
+  render(<DataTable log={log} />);
+  expect(
+    screen.getAllByRole('row').filter((r) => r.getAttribute('aria-selected') === 'true'),
+  ).toHaveLength(0);
+});

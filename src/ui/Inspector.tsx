@@ -13,7 +13,8 @@ const valueAt = (ch: Channel, i: number | null) => {
 
 /** Every channel's value at the cursor — not just the plotted ones. */
 export function Inspector({ log }: { log: Log }) {
-  const cursor = useViewStore((s) => s.cursor);
+  const raw = useViewStore((s) => s.cursor);
+  const cursor = raw != null && raw < log.rowCount ? raw : null;
   const [query, setQuery] = useState('');
   const channels = useMemo(() => filterByQuery(log.channels, query, (c) => c.header), [log, query]);
 

@@ -5,6 +5,8 @@ import { reportUrl } from './report';
 interface Props {
   /** Where the crash happened, e.g. "the charts" — completes "Something went wrong in …". */
   label: string;
+  /** Changing this (e.g. to the new log's id) clears a previous crash. */
+  resetKey?: string;
   children: ReactNode;
 }
 
@@ -14,6 +16,11 @@ export class ErrorBoundary extends Component<Props, { failed: boolean }> {
 
   static getDerivedStateFromError() {
     return { failed: true };
+  }
+
+  componentDidUpdate(prev: Props) {
+    if (this.state.failed && prev.resetKey !== this.props.resetKey)
+      this.setState({ failed: false });
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {

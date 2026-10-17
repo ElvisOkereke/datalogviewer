@@ -97,3 +97,9 @@ test('a manual scale can be set and cleared', async () => {
   await userEvent.click(await screen.findByRole('menuitem', { name: 'Auto scale' }));
   expect(useLayoutStore.getState().panes[0].series[0].scale).toBeUndefined();
 });
+
+test('a cursor beyond the end of the log shows no value', () => {
+  useViewStore.setState({ cursor: 6700 });
+  renderLegend();
+  expect(within(entry('RPM')).getByTestId('legend-value')).toHaveTextContent('—');
+});

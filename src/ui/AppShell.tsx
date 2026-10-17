@@ -72,7 +72,7 @@ function Workbench({
   const main = (
     <main className="flex min-w-0 flex-1 flex-col">
       <div className="min-h-0 flex-1">
-        <ErrorBoundary label={view === 'chart' ? 'the charts' : 'the table'}>
+        <ErrorBoundary resetKey={log.id} label={view === 'chart' ? 'the charts' : 'the table'}>
           {view === 'chart' ? <PaneStack log={log} resizable={!narrow} /> : <DataTable log={log} />}
         </ErrorBoundary>
       </div>
@@ -97,7 +97,9 @@ function Workbench({
             <SheetHeader className="sr-only">
               <SheetTitle>Inspector</SheetTitle>
             </SheetHeader>
-            <Inspector log={log} />
+            <ErrorBoundary resetKey={log.id} label="the Inspector">
+              <Inspector log={log} />
+            </ErrorBoundary>
           </SheetContent>
         </Sheet>
       </div>
@@ -107,14 +109,14 @@ function Workbench({
   return (
     <div className="flex min-h-0 flex-1">
       <div className="shrink-0" style={{ width: sidebarWidth }}>
-        <ErrorBoundary label="the channel list">
+        <ErrorBoundary resetKey={log.id} label="the channel list">
           <Sidebar log={log} />
         </ErrorBoundary>
       </div>
       {main}
       {inspectorOpen && (
         <div className="w-64 shrink-0">
-          <ErrorBoundary label="the Inspector">
+          <ErrorBoundary resetKey={log.id} label="the Inspector">
             <Inspector log={log} />
           </ErrorBoundary>
         </div>
@@ -178,7 +180,7 @@ export function AppShell() {
         }}
       />
       {log ? (
-        <ErrorBoundary label="the workbench">
+        <ErrorBoundary resetKey={log.id} label="the workbench">
           <Workbench
             log={log}
             narrow={narrow}

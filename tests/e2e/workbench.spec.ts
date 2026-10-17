@@ -229,3 +229,63 @@ test('switching to the light theme redraws the charts', async ({ page }) => {
   await hoverPlot(page, 0.5);
   expect(await legendValues(page)).toEqual(before);
 });
+
+test('opening a short log while the cursor is pinned deep in a long one does not crash', async ({
+  page,
+}) => {
+  await loadDemo(page);
+  await page.getByRole('button', { name: 'Inspector' }).click();
+  const box = (await page.getByTestId('chart-pane').first().locator('.u-over').boundingBox())!;
+  await page.mouse.click(box.x + box.width * 0.7, box.y + box.height / 2);
+  await expect(page.getByText(/At cursor/)).toBeVisible();
+
+  const rows = Array.from({ length: 30 }, (_, i) => `${(i / 10).toFixed(1)},${800 + i}`).join('\n');
+  await page.getByLabel('Open log').setInputFiles({
+    name: 'short.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from(`Time (s),RPM\n${rows}\n`),
+  });
+  await expect(page.getByRole('banner')).toContainText('short.csv');
+  await expect(page.getByText(/Something went wrong/)).toHaveCount(0);
+  await expect(page.getByText('Hover a chart')).toBeVisible();
+});
+
+test('a pinned crosshair stays on its sample when the view zooms', async ({ page }) => {
+  await loadDemo(page);
+  await page.getByRole('button', { name: 'Inspector' }).click();
+  const pane = page.getByTestId('chart-pane').first();
+  const over = pane.locator('.u-over');
+  const box = (await over.boundingBox())!;
+  await page.mouse.click(box.x + box.width * 0.4, box.y + box.height / 2);
+  const header = await page.getByText(/At cursor · /).textContent();
+  const pinnedT = Number(header!.match(/([\d.,]+) s/)![1].replace(/,/g, ''));
+
+  await page.mouse.move(box.x + box.width * 0.7, box.y + box.height / 2);
+  for (let i = 0; i < 2; i++) await page.mouse.wheel(0, -100);
+  await expect.poll(async () => Number(await pane.getAttribute('data-x-min'))).toBeGreaterThan(0);
+
+  const min = Number(await pane.getAttribute('data-x-min'));
+  const max = Number(await pane.getAttribute('data-x-max'));
+  const expectedPx = ((pinnedT - min) / (max - min)) * box.width;
+  const actualPx = await pane
+    .locator('.u-cursor-x')
+    .evaluate((el) => new DOMMatrixReadOnly(getComputedStyle(el).transform).m41);
+  expect(Math.abs(actualPx - expectedPx)).toBeLessThan(3);
+});
+
+test('Shift+drag zooms to the selection even with a pinned cursor', async ({ page }) => {
+  await loadDemo(page);
+  const box = (await page.getByTestId('chart-pane').first().locator('.u-over').boundingBox())!;
+  const y = box.y + box.height / 2;
+  await page.mouse.click(box.x + box.width * 0.4, y);
+  await page.keyboard.down('Shift');
+  await page.mouse.move(box.x + box.width * 0.25, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.5, y, { steps: 5 });
+  await page.mouse.up();
+  await page.keyboard.up('Shift');
+  const r = await xRange(page);
+  expect(r.min).toBeGreaterThan(100);
+  expect(r.max).toBeLessThan(260);
+  expect(r.max - r.min).toBeGreaterThan(100);
+});

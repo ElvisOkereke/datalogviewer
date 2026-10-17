@@ -3,7 +3,16 @@ import { LogParseError } from '@/data/errors';
 import type { Log } from '@/data/types';
 import { createLogStore, SAMPLES, selectActiveLog, type ParseFn } from '@/state/logStore';
 
-const fakeLog = (id: string, fileName: string) => ({ id, fileName }) as Log;
+// Just enough of a Log for the store, which also resets the view and applies a layout.
+const fakeLog = (id: string, fileName: string) =>
+  ({
+    id,
+    fileName,
+    time: Float64Array.of(0, 1),
+    rowCount: 2,
+    channels: [],
+    timeSource: { kind: 'index' },
+  }) as unknown as Log;
 const file = (name: string) => new File(['x'], name);
 
 describe('logStore', () => {
@@ -127,5 +136,27 @@ describe('overlapping loads', () => {
     void store.getState().loadFile(file('b.csv'));
     expect(calls[0].signal.aborted).toBe(true);
     expect(calls[1].signal.aborted).toBe(false);
+  });
+});
+
+describe('switching logs', () => {
+  test('the view is reset before the new log becomes active (no stale cursor reaches readers)', async () => {
+    const { useViewStore } = await import('@/state/viewStore');
+    useViewStore.getState().resetForLog(Float64Array.from({ length: 9600 }, (_, i) => i));
+    useViewStore.getState().pin(6700);
+    const small = {
+      ...fakeLog('SMALL', 's.csv'),
+      time: Float64Array.of(0, 1),
+      rowCount: 2,
+      channels: [],
+    } as unknown as Log;
+    const store = createLogStore(async () => small);
+    let cursorWhenActivated: number | null | undefined;
+    const stop = store.subscribe((s, prev) => {
+      if (s.activeLogId !== prev.activeLogId) cursorWhenActivated = useViewStore.getState().cursor;
+    });
+    await store.getState().loadFile(file('s.csv'));
+    stop();
+    expect(cursorWhenActivated).toBeNull();
   });
 });

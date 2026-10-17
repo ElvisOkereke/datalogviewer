@@ -59,7 +59,8 @@ function LegendEntry({
   onHoverSeries(header: string | null): void;
   onUseForAxis(header: string): void;
 }) {
-  const cursor = useViewStore((s) => s.cursor);
+  const raw = useViewStore((s) => s.cursor);
+  const cursor = raw != null && raw < (series.channel?.values?.length ?? 0) ? raw : null;
   const { removeSeries, setSeriesColor, setSeriesScale } = useLayoutStore.getState();
   const mode = useThemeMode();
   const [editingScale, setEditingScale] = useState(false);
