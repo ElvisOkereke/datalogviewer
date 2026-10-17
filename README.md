@@ -4,15 +4,27 @@ Free, fast datalog viewer for CSV logs, right in your browser.
 
 **Open it:** https://elvisokereke.github.io/datalogviewer/
 
-- **Private.** Your log files never leave your computer: no server, no account, no tracking.
-- **Fast.** Large logs are parsed in the background; a 1,000,000-row file loads in about two seconds.
-- **Forgiving.** Handles comma, semicolon and tab files, decimal commas, units rows, preambles and messy spreadsheet exports.
+![DataLogViewer showing an engine log with synced charts, channel list and Inspector](docs/screenshot.png)
 
-> **Status:** v0.1 in development. Charts, the channel list and the table view land next.
+- **Private.** Your log files never leave your computer: no server, no account, no tracking.
+- **Fast.** A 1,000,000-row log loads in about two seconds and zooms and pans smoothly.
+- **Forgiving.** Handles comma, semicolon and tab files, decimal commas, units rows, preambles, placeholders and messy spreadsheet exports.
+
+## Features
+
+- Stacked charts with a crosshair shared across every chart; each channel gets its own scale.
+- Mouse-wheel zoom, drag to pan, Shift+drag to zoom to a range, double-click to see the whole log.
+- Click to pin the cursor, then step through samples with the arrow keys.
+- Overview strip of the whole log with a draggable window.
+- Searchable channel list: click or drag a channel onto a chart.
+- Inspector panel with every channel's value at the cursor, and a table view of the raw data.
+- Your layout is remembered and reconnects to channels by name when you open the next log.
+- Dark and light themes; works on phones with touch gestures.
+
+Press <kbd>?</kbd> in the app for all keyboard shortcuts.
 
 ## Roadmap
 
-- **v0.1, solid viewer:** synced multi-chart crosshair, zoom and pan, channel search, table view, themes.
 - **v0.2, analyst:** calculated channels, scatter plots, range stats, markers, export.
 - **v0.3+, MegaLogViewer rival:** RPM × MAP tables, log comparison, filters, more formats, offline install.
 
