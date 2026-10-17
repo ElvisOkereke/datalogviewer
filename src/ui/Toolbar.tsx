@@ -12,6 +12,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Log } from '@/data/types';
 import { cn } from '@/lib/utils';
+import type { ViewMode } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
 import { useTheme } from './useTheme';
 
@@ -104,10 +105,13 @@ export function Toolbar({
             variant="outline"
             aria-label="View"
             value={view}
-            onValueChange={(v) => v && useLayoutStore.getState().setView(v as 'chart' | 'table')}
+            onValueChange={(v) => v && useLayoutStore.getState().setView(v as ViewMode)}
           >
             <ToggleGroupItem value="chart" className="px-3 text-xs">
               Chart
+            </ToggleGroupItem>
+            <ToggleGroupItem value="scatter" className="px-3 text-xs">
+              Scatter
             </ToggleGroupItem>
             <ToggleGroupItem value="table" className="px-3 text-xs">
               Table
