@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { bindLayout, type BoundPane } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
 import { useViewStore } from '@/state/viewStore';
+import { ErrorBoundary } from './ErrorBoundary';
 import { CHANNEL_MIME } from './Sidebar';
 
 const carriesChannel = (e: DragEvent) => Array.from(e.dataTransfer.types).includes(CHANNEL_MIME);
@@ -162,7 +163,9 @@ export function PaneStack({ log }: { log: Log }) {
               onChannel={(header) => useLayoutStore.getState().addSeries(pane.id, header)}
             >
               <PaneMenu pane={pane} />
-              <ChartPane pane={pane} log={log} focused={pane.id === focusedPaneId} />
+              <ErrorBoundary label="this chart">
+                <ChartPane pane={pane} log={log} focused={pane.id === focusedPaneId} />
+              </ErrorBoundary>
             </DropTarget>
           </Panel>,
         ])}

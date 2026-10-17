@@ -43,12 +43,13 @@ export const EMPTY_LAYOUT: PersistedLayout = {
 
 export const newPaneId = () => `p-${Math.random().toString(36).slice(2, 10)}`;
 
-function withSeries(headers: string[]): SeriesRef[] {
-  const series: SeriesRef[] = [];
-  for (const header of headers) {
-    series.push({ header, color: nextSeriesColor(series.map((s) => s.color)) });
-  }
-  return series;
+/** Assigns colours that are unique across the whole layout, so colour follows the channel. */
+function withSeries(headers: string[], used: string[]): SeriesRef[] {
+  return headers.map((header) => {
+    const color = nextSeriesColor(used);
+    used.push(color);
+    return { header, color };
+  });
 }
 
 /** Spec §8: two panes — the first two numeric non-time channels, then the third. */
@@ -58,13 +59,14 @@ export function defaultLayout(log: Log): PersistedLayout {
     .filter((c) => c.kind === 'numeric' && c.id !== timeId)
     .map((c) => c.header);
   const groups = [plottable.slice(0, 2), plottable.slice(2, 3)].filter((g) => g.length > 0);
+  const used: string[] = [];
   return {
     ...EMPTY_LAYOUT,
     panes: groups.map((headers) => ({
       id: newPaneId(),
       size: 100 / groups.length,
       sharedAxis: false,
-      series: withSeries(headers),
+      series: withSeries(headers, used),
     })),
   };
 }

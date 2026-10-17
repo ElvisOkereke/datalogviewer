@@ -100,3 +100,11 @@ test('blocked storage never breaks an action', () => {
   expect(() => layout().addPane()).not.toThrow();
   expect(layout().panes).toHaveLength(1);
 });
+
+test('a new series takes a colour not used in any pane (colour follows the channel)', () => {
+  const a = layout().addPane();
+  const b = layout().addPane();
+  layout().addSeries(a, 'RPM');
+  layout().addSeries(b, 'AFR');
+  expect(layout().panes.map((p) => p.series[0].color)).toEqual(['s1', 's2']);
+});

@@ -97,7 +97,12 @@ export const useLayoutStore = create<LayoutState>()(
                   ...p,
                   series: [
                     ...p.series,
-                    { header, color: nextSeriesColor(p.series.map((s) => s.color)) },
+                    {
+                      header,
+                      color: nextSeriesColor(
+                        get().panes.flatMap((q) => q.series.map((s) => s.color)),
+                      ),
+                    },
                   ],
                 },
           );

@@ -13,7 +13,7 @@ const logOf = (csv: string) => parseCsvText(csv, { fileName: 't.csv', encoding: 
 const demo = logOf('Time (s),RPM,MAP (kPa),AFR,Mode\n0,800,30,14.7,Idle\n0.05,810,31,14.6,Idle');
 
 describe('defaultLayout', () => {
-  test('two panes: first two numeric channels, then the third; time and text excluded', () => {
+  test('two panes: first two numeric channels, then the third; colours unique across panes', () => {
     const layout = defaultLayout(demo);
     expect(layout.version).toBe(1);
     expect(layout.panes.map((p) => p.series.map((s) => [s.header, s.color]))).toEqual([
@@ -21,7 +21,7 @@ describe('defaultLayout', () => {
         ['RPM', 's1'],
         ['MAP (kPa)', 's2'],
       ],
-      [['AFR', 's1']],
+      [['AFR', 's3']],
     ]);
     expect(layout.panes.map((p) => p.size)).toEqual([50, 50]);
     expect(new Set(layout.panes.map((p) => p.id)).size).toBe(2);
