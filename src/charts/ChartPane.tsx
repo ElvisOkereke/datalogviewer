@@ -8,6 +8,27 @@ import { useViewStore } from '@/state/viewStore';
 import { buildPaneOptions } from './buildOptions';
 import { readChartTheme, type ChartTheme } from './chartTheme';
 import { Legend } from './Legend';
+import { navigationPlugin } from './navigation';
+import type { XRange } from './range';
+
+const navigation = () => {
+  const view = useViewStore.getState;
+  return navigationPlugin({
+    zoomAt: (anchor, factor) => view().zoomAt(anchor, factor),
+    pan: (delta) => view().pan(delta),
+    setRange: (r) => view().setRange(r),
+    fit: () => view().fit(),
+    pin: (i) => view().pin(i),
+    isPinned: () => view().pinned,
+  });
+};
+
+/** Exposes the visible x-range on the pane for tests and debugging (uPlot draws axes on canvas). */
+function markRange(el: HTMLElement | null, r: XRange) {
+  if (!el) return;
+  el.dataset.xMin = String(r.min);
+  el.dataset.xMax = String(r.max);
+}
 
 /** Re-reads chart colours whenever the app theme (data-theme on <html>) changes. */
 function useChartTheme(): ChartTheme {
@@ -31,6 +52,7 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 export function ChartPane({ pane, log, focused }: { pane: BoundPane; log: Log; focused: boolean }) {
+  const rootRef = useRef<HTMLDivElement>(null);
   const plotRef = useRef<HTMLDivElement>(null);
   const uRef = useRef<uPlot | null>(null);
   const paneRef = useRef(pane);
@@ -67,20 +89,7 @@ export function ChartPane({ pane, log, focused }: { pane: BoundPane; log: Log; f
       height: Math.max(height, 60),
       axisHeader,
     });
-    opts.cursor = {
-      ...opts.cursor,
-      // A pinned cursor stays put while the mouse moves.
-      bind: {
-        mousemove: (_u, _t, handler) => (e) => {
-          if (!useViewStore.getState().pinned) handler(e);
-          return null;
-        },
-        mouseleave: (_u, _t, handler) => (e) => {
-          if (!useViewStore.getState().pinned) handler(e);
-          return null;
-        },
-      },
-    };
+    opts.plugins = [navigation()];
     opts.hooks = {
       setCursor: [(u) => useViewStore.getState().setCursor(u.cursor.idx ?? null)],
     };
@@ -89,7 +98,10 @@ export function ChartPane({ pane, log, focused }: { pane: BoundPane; log: Log; f
     uRef.current = u;
     const { range, bounds } = useViewStore.getState();
     const r = range ?? bounds;
-    if (r) u.setScale('x', r);
+    if (r) {
+      u.setScale('x', r);
+      markRange(rootRef.current, r);
+    }
 
     const observer = new ResizeObserver(([entry]) => {
       const box = entry.contentRect;
@@ -112,6 +124,7 @@ export function ChartPane({ pane, log, focused }: { pane: BoundPane; log: Log; f
         const r = s.range ?? s.bounds;
         if (r && (s.range !== prev.range || s.bounds !== prev.bounds)) {
           if (u.scales.x.min !== r.min || u.scales.x.max !== r.max) u.setScale('x', r);
+          markRange(rootRef.current, r);
         }
         if (s.pinned && s.cursor != null && (s.cursor !== prev.cursor || !prev.pinned)) {
           const left = u.valToPos(log.time[s.cursor], 'x');
@@ -123,6 +136,7 @@ export function ChartPane({ pane, log, focused }: { pane: BoundPane; log: Log; f
 
   return (
     <div
+      ref={rootRef}
       data-testid="chart-pane"
       data-pane-id={pane.id}
       className={cn(

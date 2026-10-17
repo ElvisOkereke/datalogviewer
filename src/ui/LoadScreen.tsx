@@ -3,6 +3,7 @@ import { ChartPane } from '@/charts/ChartPane';
 import { bindLayout } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
 import { useViewStore } from '@/state/viewStore';
+import { useShortcuts } from '@/ui/useShortcuts';
 import { REPO_URL } from '@/config';
 import type { Log } from '@/data/types';
 import {
@@ -239,10 +240,13 @@ function LogSummary({ log }: { log: Log }) {
   );
 }
 
+const noop = () => {};
+
 // TEMPORARY (Plan B Tasks 5–10): mounts the chart panes until the Workbench shell lands in Task 11.
 function TemporaryCharts({ log }: { log: Log }) {
   const panes = useLayoutStore((s) => s.panes);
   const focusedPaneId = useViewStore((s) => s.focusedPaneId);
+  useShortcuts(noop);
   useEffect(() => {
     useViewStore.getState().resetForLog(log.time);
     useLayoutStore.getState().ensureLayoutFor(log);
