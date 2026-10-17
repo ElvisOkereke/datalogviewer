@@ -9,6 +9,7 @@ vi.mock('@/charts/ChartPane', () => ({ ChartPane: () => <div data-testid="chart-
 
 beforeEach(() => useLogStore.setState({ logs: {}, activeLogId: null, status: { kind: 'idle' } }));
 vi.mock('@/charts/OverviewStrip', () => ({ OverviewStrip: () => null }));
+vi.mock('@/ui/PaneStack', () => ({ PaneStack: () => <div data-testid="chart-pane" /> }));
 
 test('offers file opening and both samples', () => {
   render(<LoadScreen />);

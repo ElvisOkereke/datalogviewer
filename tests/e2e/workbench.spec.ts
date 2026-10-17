@@ -147,3 +147,12 @@ test('overview strip shows and moves the visible window', async ({ page }) => {
   await page.mouse.up();
   await expect.poll(async () => (await win.boundingBox())!.width).toBeLessThan(moved.width - 30);
 });
+
+test('the pane menu opens with a mouse click and can delete a chart', async ({ page }) => {
+  await loadDemo(page);
+  await page.getByTestId('pane').nth(1).getByRole('button', { name: 'Chart options' }).click();
+  await page.getByRole('menuitem', { name: 'Delete chart' }).click();
+  await expect(page.getByTestId('chart-pane')).toHaveCount(1);
+  await page.getByRole('button', { name: 'Add chart' }).click();
+  await expect(page.getByTestId('chart-pane')).toHaveCount(2);
+});

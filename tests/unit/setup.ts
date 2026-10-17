@@ -17,3 +17,13 @@ if (typeof window !== 'undefined') {
     })),
   });
 }
+
+// jsdom has no ResizeObserver; layout libraries only need it to exist.
+if (typeof window !== 'undefined' && !('ResizeObserver' in window)) {
+  class ResizeObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  Object.defineProperty(window, 'ResizeObserver', { writable: true, value: ResizeObserverStub });
+}

@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, type DragEvent } from 'react';
-import { ChartPane } from '@/charts/ChartPane';
 import { OverviewStrip } from '@/charts/OverviewStrip';
 import { bindLayout } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
 import { useViewStore } from '@/state/viewStore';
+import { PaneStack } from '@/ui/PaneStack';
 import { useShortcuts } from '@/ui/useShortcuts';
 import { REPO_URL } from '@/config';
 import type { Log } from '@/data/types';
@@ -246,7 +246,6 @@ const noop = () => {};
 // TEMPORARY (Plan B Tasks 5–10): mounts the chart panes until the Workbench shell lands in Task 11.
 function TemporaryCharts({ log }: { log: Log }) {
   const panes = useLayoutStore((s) => s.panes);
-  const focusedPaneId = useViewStore((s) => s.focusedPaneId);
   useShortcuts(noop);
   useEffect(() => {
     useViewStore.getState().resetForLog(log.time);
@@ -257,12 +256,10 @@ function TemporaryCharts({ log }: { log: Log }) {
     [panes, log],
   );
   return (
-    <div className="flex h-[480px] flex-col gap-1">
-      {bound.map((p) => (
-        <div key={p.id} className="min-h-0 flex-1">
-          <ChartPane pane={p} log={log} focused={p.id === focusedPaneId} />
-        </div>
-      ))}
+    <div className="flex h-[520px] flex-col">
+      <div className="min-h-0 flex-1">
+        <PaneStack log={log} />
+      </div>
       <OverviewStrip
         log={log}
         channel={
