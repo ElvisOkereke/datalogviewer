@@ -16,13 +16,37 @@ export interface PaneLayout {
   series: SeriesRef[];
 }
 
+export type ViewMode = 'chart' | 'scatter' | 'table';
+export type InspectorTab = 'cursor' | 'range' | 'markers';
+
+/** A formula channel; evaluated per log (src/data/calculated.ts). */
+export interface CalculatedDef {
+  id: string;
+  name: string;
+  unit?: string;
+  expression: string;
+}
+
+/** Scatter view axes, by channel header. */
+export interface ScatterConfig {
+  x: string;
+  y: string;
+  color?: string;
+}
+
 export interface PersistedLayout {
-  version: 1;
+  version: 2;
   panes: PaneLayout[];
   sidebarWidth: number;
   inspectorOpen: boolean;
-  view: 'chart' | 'table';
+  inspectorTab: InspectorTab;
+  view: ViewMode;
+  calculated: CalculatedDef[];
+  scatter: ScatterConfig | null;
 }
+
+export const MAX_EXPRESSION_CHARS = 2000;
+export const MAX_NAME_CHARS = 100;
 
 export interface BoundSeries extends SeriesRef {
   /** null when the saved series names a channel this log doesn't have. */
@@ -34,11 +58,14 @@ export interface BoundPane extends Omit<PaneLayout, 'series'> {
 }
 
 export const EMPTY_LAYOUT: PersistedLayout = {
-  version: 1,
+  version: 2,
   panes: [],
   sidebarWidth: 240,
   inspectorOpen: false,
+  inspectorTab: 'cursor',
   view: 'chart',
+  calculated: [],
+  scatter: null,
 };
 
 export const newPaneId = () => `p-${Math.random().toString(36).slice(2, 10)}`;
@@ -93,29 +120,82 @@ function isPane(v: unknown): v is PaneLayout {
     isObject(v) &&
     typeof v.id === 'string' &&
     typeof v.size === 'number' &&
+    Number.isFinite(v.size) &&
+    v.size > 0 &&
     typeof v.sharedAxis === 'boolean' &&
     Array.isArray(v.series) &&
     v.series.every(isSeriesRef)
   );
 }
 
-/** Accepts only a structurally valid version-1 layout; anything else (corrupt, future) → empty. */
-export function migrateLayout(raw: unknown): PersistedLayout {
-  if (
-    isObject(raw) &&
-    raw.version === 1 &&
+const optionalString = (v: unknown) => v === undefined || typeof v === 'string';
+
+function isCalculatedDef(v: unknown): v is CalculatedDef {
+  return (
+    isObject(v) &&
+    typeof v.id === 'string' &&
+    typeof v.name === 'string' &&
+    v.name.length <= MAX_NAME_CHARS &&
+    typeof v.expression === 'string' &&
+    v.expression.length <= MAX_EXPRESSION_CHARS &&
+    optionalString(v.unit)
+  );
+}
+
+function isScatter(v: unknown): v is ScatterConfig | null {
+  return (
+    v === null ||
+    (isObject(v) && typeof v.x === 'string' && typeof v.y === 'string' && optionalString(v.color))
+  );
+}
+
+/** Shape shared by v1 and v2: panes (unique ids), sidebar width, inspector flag. */
+function hasCommonShape(raw: Record<string, unknown>): raw is Record<string, unknown> & {
+  panes: PaneLayout[];
+  sidebarWidth: number;
+  inspectorOpen: boolean;
+} {
+  return (
     Array.isArray(raw.panes) &&
     raw.panes.every(isPane) &&
+    new Set(raw.panes.map((p: PaneLayout) => p.id)).size === raw.panes.length &&
     typeof raw.sidebarWidth === 'number' &&
-    typeof raw.inspectorOpen === 'boolean' &&
-    (raw.view === 'chart' || raw.view === 'table')
+    Number.isFinite(raw.sidebarWidth) &&
+    typeof raw.inspectorOpen === 'boolean'
+  );
+}
+
+/**
+ * Accepts a structurally valid v1 layout (upgraded to v2) or v2 layout; anything else — corrupt,
+ * future versions, out-of-range values — falls back to the empty layout.
+ */
+export function migrateLayout(raw: unknown): PersistedLayout {
+  if (!isObject(raw) || !hasCommonShape(raw)) return EMPTY_LAYOUT;
+  const common = {
+    panes: raw.panes,
+    sidebarWidth: raw.sidebarWidth,
+    inspectorOpen: raw.inspectorOpen,
+  };
+  if (raw.version === 1 && (raw.view === 'chart' || raw.view === 'table')) {
+    return { ...EMPTY_LAYOUT, ...common, view: raw.view };
+  }
+  if (
+    raw.version === 2 &&
+    (raw.view === 'chart' || raw.view === 'scatter' || raw.view === 'table') &&
+    (raw.inspectorTab === 'cursor' ||
+      raw.inspectorTab === 'range' ||
+      raw.inspectorTab === 'markers') &&
+    Array.isArray(raw.calculated) &&
+    raw.calculated.every(isCalculatedDef) &&
+    isScatter(raw.scatter)
   ) {
     return {
-      version: 1,
-      panes: raw.panes,
-      sidebarWidth: raw.sidebarWidth,
-      inspectorOpen: raw.inspectorOpen,
+      version: 2,
+      ...common,
       view: raw.view,
+      inspectorTab: raw.inspectorTab,
+      calculated: raw.calculated,
+      scatter: raw.scatter,
     };
   }
   return EMPTY_LAYOUT;
