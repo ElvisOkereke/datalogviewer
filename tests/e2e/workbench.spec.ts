@@ -221,7 +221,7 @@ test('the layout survives a reload and re-binds across logs', async ({ page }) =
       .first(),
   ).toBeVisible();
 
-  await page.getByRole('button', { name: 'Layout' }).click();
+  await page.getByRole('button', { name: 'Layout', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Reset layout' }).click();
   await expect(page.getByText('not in this log')).toHaveCount(0);
   await expect(
