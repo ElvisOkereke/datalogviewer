@@ -63,6 +63,26 @@ describe('marker store', () => {
     expect(markers().markers).toEqual([]);
   });
 
+  test('saved markers are checked against the log, so a fingerprint collision loads nothing', () => {
+    markers().load(run);
+    markers().add(1);
+    const key = `dlv.markers.${logFingerprint(run)}`;
+    const saved = JSON.parse(localStorage.getItem(key)!) as Record<string, unknown>;
+    expect(saved).toMatchObject({ fileName: 'run.csv', rowCount: 3, first: 0, last: 2 });
+
+    // Another log whose fingerprint happened to match would find this record under its key.
+    localStorage.setItem(key, JSON.stringify({ ...saved, fileName: 'other.csv' }));
+    markers().load(run);
+    expect(markers().markers).toEqual([]);
+    localStorage.setItem(key, JSON.stringify({ ...saved, rowCount: 4 }));
+    markers().load(run);
+    expect(markers().markers).toEqual([]);
+  });
+
+  test('the fingerprint is 64-bit (16 hex digits)', () => {
+    expect(logFingerprint(run)).toMatch(/^[0-9a-f]{16}$/);
+  });
+
   test('blocked storage never breaks adding a marker', () => {
     markers().load(run);
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
