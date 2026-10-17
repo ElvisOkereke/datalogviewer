@@ -121,7 +121,7 @@ function AddChart({ grow }: { grow: boolean }) {
   );
 }
 
-export function PaneStack({ log }: { log: Log }) {
+export function PaneStack({ log, resizable = true }: { log: Log; resizable?: boolean }) {
   const layoutPanes = useLayoutStore((s) => s.panes);
   const focusedPaneId = useViewStore((s) => s.focusedPaneId);
   const panes = useMemo(
@@ -144,6 +144,7 @@ export function PaneStack({ log }: { log: Log }) {
       <Group
         key={groupKey}
         orientation="vertical"
+        disabled={!resizable}
         className="min-h-0 flex-1"
         defaultLayout={Object.fromEntries(panes.map((p) => [p.id, p.size]))}
         onLayoutChanged={(layout) => useLayoutStore.getState().setPaneSizes(layout)}

@@ -21,7 +21,7 @@ export function plotChannel(header: string): void {
   layout.addSeries(target, header);
 }
 
-export function Sidebar({ log }: { log: Log }) {
+export function Sidebar({ log, onPlotted }: { log: Log; onPlotted?: () => void }) {
   const [query, setQuery] = useState('');
   const panes = useLayoutStore((s) => s.panes);
   const mode = document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';
@@ -44,7 +44,7 @@ export function Sidebar({ log }: { log: Log }) {
         aria-label="Search channels"
         className="h-8 text-xs"
       />
-      <ChannelList channels={channels} timeId={timeId} colourOf={colourOf} />
+      <ChannelList channels={channels} timeId={timeId} colourOf={colourOf} onPlotted={onPlotted} />
     </aside>
   );
 }
@@ -53,10 +53,12 @@ function ChannelList({
   channels,
   timeId,
   colourOf,
+  onPlotted,
 }: {
   channels: Channel[];
   timeId: string | null;
   colourOf(header: string): string | null;
+  onPlotted?: () => void;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const virtual = channels.length > VIRTUALIZE_ABOVE;
@@ -67,7 +69,13 @@ function ChannelList({
     overscan: 10,
   });
   const row = (c: Channel) => (
-    <ChannelRow key={c.id} channel={c} isTime={c.id === timeId} colour={colourOf(c.header)} />
+    <ChannelRow
+      key={c.id}
+      channel={c}
+      isTime={c.id === timeId}
+      colour={colourOf(c.header)}
+      onPlotted={onPlotted}
+    />
   );
 
   return (
@@ -95,10 +103,12 @@ function ChannelRow({
   channel,
   isTime,
   colour,
+  onPlotted,
 }: {
   channel: Channel;
   isTime: boolean;
   colour: string | null;
+  onPlotted?: () => void;
 }) {
   const plottable = channel.kind === 'numeric';
   const onDragStart = (e: DragEvent) => {
@@ -113,7 +123,11 @@ function ChannelRow({
       aria-disabled={!plottable}
       draggable={plottable}
       title={plottable ? undefined : 'Text channel — shown in the table and Inspector'}
-      onClick={() => plottable && plotChannel(channel.header)}
+      onClick={() => {
+        if (!plottable) return;
+        plotChannel(channel.header);
+        onPlotted?.();
+      }}
       onDragStart={plottable ? onDragStart : undefined}
       className={cn(
         'flex h-7 w-full items-center gap-2 rounded-sm px-1.5 text-left text-xs',

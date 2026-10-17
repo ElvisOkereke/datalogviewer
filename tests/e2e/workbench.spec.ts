@@ -156,3 +156,41 @@ test('the pane menu opens with a mouse click and can delete a chart', async ({ p
   await page.getByRole('button', { name: 'Add chart' }).click();
   await expect(page.getByTestId('chart-pane')).toHaveCount(2);
 });
+
+test.describe('on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('panels become drawers; channels can be plotted; a tap pins the cursor', async ({
+    page,
+  }) => {
+    await loadDemo(page);
+    await expect(page.getByPlaceholder('Search 10 channels…')).toBeHidden();
+
+    await page.getByRole('button', { name: 'Channels' }).tap();
+    const drawer = page.getByRole('dialog');
+    await expect(drawer.getByPlaceholder('Search 10 channels…')).toBeVisible();
+    await drawer.getByTestId('channel-row').filter({ hasText: 'Battery Voltage' }).tap();
+    await expect(drawer).toBeHidden();
+    await expect(page.getByRole('button', { name: /Battery Voltage/ })).toBeVisible();
+
+    const over = page.getByTestId('chart-pane').first().locator('.u-over');
+    const box = (await over.boundingBox())!;
+    await page.touchscreen.tap(box.x + box.width * 0.5, box.y + box.height / 2);
+    await expect.poll(async () => (await legendValues(page)).every((v) => v !== '—')).toBe(true);
+
+    await page.getByRole('button', { name: 'Inspector' }).tap();
+    await expect(page.getByRole('dialog').getByText(/At cursor/)).toBeVisible();
+  });
+});
+
+test.describe('toolbar on a phone', () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test('every toolbar control fits on screen', async ({ page }) => {
+    await loadDemo(page);
+    for (const name of ['Channels', 'Inspector', 'Open log', 'More']) {
+      const box = (await page.getByRole('banner').getByRole('button', { name }).boundingBox())!;
+      expect(box.x + box.width).toBeLessThanOrEqual(390);
+    }
+  });
+});

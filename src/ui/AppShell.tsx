@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { Menu } from 'lucide-react';
 import { OverviewStrip } from '@/charts/OverviewStrip';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { Log, ParseWarning } from '@/data/types';
 import { bindLayout } from '@/state/layout';
@@ -19,6 +22,7 @@ import { ShortcutsDialog } from './ShortcutsDialog';
 import { Sidebar } from './Sidebar';
 import { Toolbar } from './Toolbar';
 import { useFileDrop } from './useFileDrop';
+import { useIsNarrow } from './useIsNarrow';
 import { useShortcuts } from './useShortcuts';
 
 /** Resets the view, applies a layout and summarises warnings whenever a new log becomes active. */
@@ -40,7 +44,17 @@ function useOnNewLog(log: Log | null, showWarnings: (w: ParseWarning[]) => void)
   }, [log, showWarnings]);
 }
 
-function Workbench({ log }: { log: Log }) {
+function Workbench({
+  log,
+  narrow,
+  channelsOpen,
+  setChannelsOpen,
+}: {
+  log: Log;
+  narrow: boolean;
+  channelsOpen: boolean;
+  setChannelsOpen(open: boolean): void;
+}) {
   const view = useLayoutStore((s) => s.view);
   const inspectorOpen = useLayoutStore((s) => s.inspectorOpen);
   const sidebarWidth = useLayoutStore((s) => s.sidebarWidth);
@@ -54,6 +68,42 @@ function Workbench({ log }: { log: Log }) {
     );
   }, [panes, log]);
 
+  const setInspectorOpen = (open: boolean) => useLayoutStore.getState().setInspectorOpen(open);
+  const main = (
+    <main className="flex min-w-0 flex-1 flex-col">
+      <div className="min-h-0 flex-1">
+        <ErrorBoundary label={view === 'chart' ? 'the charts' : 'the table'}>
+          {view === 'chart' ? <PaneStack log={log} resizable={!narrow} /> : <DataTable log={log} />}
+        </ErrorBoundary>
+      </div>
+      {view === 'chart' && <OverviewStrip log={log} channel={overviewChannel} />}
+    </main>
+  );
+
+  if (narrow) {
+    return (
+      <div className="flex min-h-0 flex-1">
+        {main}
+        <Sheet open={channelsOpen} onOpenChange={setChannelsOpen}>
+          <SheetContent side="left" className="w-72 gap-0 p-0">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Channels</SheetTitle>
+            </SheetHeader>
+            <Sidebar log={log} onPlotted={() => setChannelsOpen(false)} />
+          </SheetContent>
+        </Sheet>
+        <Sheet open={inspectorOpen} onOpenChange={setInspectorOpen}>
+          <SheetContent side="right" className="w-72 gap-0 p-0">
+            <SheetHeader className="sr-only">
+              <SheetTitle>Inspector</SheetTitle>
+            </SheetHeader>
+            <Inspector log={log} />
+          </SheetContent>
+        </Sheet>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-0 flex-1">
       <div className="shrink-0" style={{ width: sidebarWidth }}>
@@ -61,14 +111,7 @@ function Workbench({ log }: { log: Log }) {
           <Sidebar log={log} />
         </ErrorBoundary>
       </div>
-      <main className="flex min-w-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1">
-          <ErrorBoundary label={view === 'chart' ? 'the charts' : 'the table'}>
-            {view === 'chart' ? <PaneStack log={log} /> : <DataTable log={log} />}
-          </ErrorBoundary>
-        </div>
-        {view === 'chart' && <OverviewStrip log={log} channel={overviewChannel} />}
-      </main>
+      {main}
       {inspectorOpen && (
         <div className="w-64 shrink-0">
           <ErrorBoundary label="the Inspector">
@@ -87,6 +130,8 @@ export function AppShell() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [warnings, setWarnings] = useState<ParseWarning[] | null>(null);
+  const [channelsOpen, setChannelsOpen] = useState(false);
+  const narrow = useIsNarrow();
 
   const openFile = useCallback((file: File) => {
     if (file.size > LARGE_FILE_BYTES) setPendingLarge(file);
@@ -104,6 +149,20 @@ export function AppShell() {
         onOpen={chooseFile}
         onShowShortcuts={() => setShortcutsOpen(true)}
         onShowAbout={() => setAboutOpen(true)}
+        compact={narrow}
+        leading={
+          narrow && log ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Channels"
+              className="size-8"
+              onClick={() => setChannelsOpen(true)}
+            >
+              <Menu className="size-4" />
+            </Button>
+          ) : null
+        }
       />
       <input
         ref={inputRef}
@@ -120,7 +179,12 @@ export function AppShell() {
       />
       {log ? (
         <ErrorBoundary label="the workbench">
-          <Workbench log={log} />
+          <Workbench
+            log={log}
+            narrow={narrow}
+            channelsOpen={channelsOpen}
+            setChannelsOpen={setChannelsOpen}
+          />
         </ErrorBoundary>
       ) : (
         <EmptyState onOpen={chooseFile} />
