@@ -43,6 +43,10 @@ export interface PersistedLayout {
 
 export const MAX_EXPRESSION_CHARS = 2000;
 export const MAX_NAME_CHARS = 100;
+/** Caps that keep a hand-made or hostile layout file from exhausting memory. */
+export const MAX_PANES = 32;
+export const MAX_SERIES_PER_PANE = 32;
+export const MAX_CALCULATED = 64;
 
 export interface BoundSeries extends SeriesRef {
   /** null when the saved series names a channel this log doesn't have. */
@@ -120,6 +124,7 @@ function isPane(v: unknown): v is PaneLayout {
     v.size > 0 &&
     typeof v.sharedAxis === 'boolean' &&
     Array.isArray(v.series) &&
+    v.series.length <= MAX_SERIES_PER_PANE &&
     v.series.every(isSeriesRef)
   );
 }
@@ -153,6 +158,7 @@ function hasCommonShape(raw: Record<string, unknown>): raw is Record<string, unk
 } {
   return (
     Array.isArray(raw.panes) &&
+    raw.panes.length <= MAX_PANES &&
     raw.panes.every(isPane) &&
     new Set(raw.panes.map((p: PaneLayout) => p.id)).size === raw.panes.length &&
     typeof raw.sidebarWidth === 'number' &&
@@ -182,6 +188,7 @@ export function migrateLayout(raw: unknown): PersistedLayout {
       raw.inspectorTab === 'range' ||
       raw.inspectorTab === 'markers') &&
     Array.isArray(raw.calculated) &&
+    raw.calculated.length <= MAX_CALCULATED &&
     raw.calculated.every(isCalculatedDef) &&
     isScatter(raw.scatter)
   ) {

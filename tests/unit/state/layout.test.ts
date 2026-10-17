@@ -131,3 +131,30 @@ describe('schema v2', () => {
     expect(migrateLayout(raw)).toEqual(EMPTY_LAYOUT);
   });
 });
+
+describe('size caps (layouts can come from files)', () => {
+  const pane = (i: number, series = 1) => ({
+    id: `p${i}`,
+    size: 1,
+    sharedAxis: false,
+    series: Array.from({ length: series }, (_, k) => ({ header: `C${k}`, color: 's1' })),
+  });
+  test.each([
+    ['33 panes', { ...EMPTY_LAYOUT, panes: Array.from({ length: 33 }, (_, i) => pane(i)) }],
+    ['33 series in a pane', { ...EMPTY_LAYOUT, panes: [pane(0, 33)] }],
+    [
+      '65 calculated channels',
+      {
+        ...EMPTY_LAYOUT,
+        calculated: Array.from({ length: 65 }, (_, i) => ({ id: `k${i}`, name: `N${i}`, expression: '1' })),
+      },
+    ],
+  ])('rejects %s', (_label, raw) => {
+    expect(migrateLayout(raw)).toEqual(EMPTY_LAYOUT);
+  });
+
+  test('accepts layouts at the caps', () => {
+    const atCaps = { ...EMPTY_LAYOUT, panes: Array.from({ length: 32 }, (_, i) => pane(i, 32)) };
+    expect(migrateLayout(atCaps).panes).toHaveLength(32);
+  });
+});

@@ -157,3 +157,15 @@ describe('layout files', () => {
     expect(useLayoutStore.getState().panes).toBe(before);
   });
 });
+
+test('an oversized layout file is refused before it is read', async () => {
+  renderShell();
+  loadLog();
+  const big = new File(['{}'], 'huge.dlvlayout.json');
+  Object.defineProperty(big, 'size', { value: 2 * 1024 * 1024 });
+  const text = vi.spyOn(big, 'text');
+  fireEvent.change(screen.getByLabelText('Open layout file'), { target: { files: [big] } });
+  await new Promise((r) => setTimeout(r, 20));
+  expect(text).not.toHaveBeenCalled();
+  expect(screen.queryByRole('alertdialog')).toBeNull();
+});

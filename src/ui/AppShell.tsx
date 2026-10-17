@@ -38,6 +38,8 @@ import { useIsNarrow } from './useIsNarrow';
 import { useShortcuts } from './useShortcuts';
 import { useWorkbenchLog } from './useWorkbenchLog';
 
+const MAX_LAYOUT_FILE_BYTES = 1024 * 1024;
+
 /** Resets the view, applies a layout and summarises warnings whenever a new log becomes active. */
 function useOnNewLog(log: Log | null, showWarnings: (w: ParseWarning[]) => void) {
   useEffect(() => {
@@ -156,6 +158,11 @@ export function AppShell() {
       'datalogviewer-layout.dlvlayout.json',
     );
   const openLayoutFile = async (file: File) => {
+    // Real layout files are a few KB; refuse anything big before reading it.
+    if (file.size > MAX_LAYOUT_FILE_BYTES) {
+      toast.error('This layout file is too large.');
+      return;
+    }
     const layout = parseLayoutFile(await file.text());
     if (layout) setPendingLayout(layout);
     else toast.error("This isn't a DataLogViewer layout file.");
