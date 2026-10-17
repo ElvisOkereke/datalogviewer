@@ -113,6 +113,8 @@ describe('buildPaneOptions', () => {
     expect(yAxes[0].scale).toBe('y:RPM');
     expect(data[0]).toBe(log.time);
     expect(opts.cursor!.sync!.key).toBe('dlv');
+    // A horizontal crosshair line is meaningless when every series has its own scale.
+    expect(opts.cursor!.y).toBe(false);
     expect(opts.series[1].stroke).toBe(resolveSeriesColor('s1', 'dark'));
     expect(opts.series[2].stroke).toBe(resolveSeriesColor('s2', 'dark'));
   });

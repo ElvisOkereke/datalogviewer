@@ -1,4 +1,8 @@
-import { useState, type DragEvent } from 'react';
+import { useEffect, useMemo, useState, type DragEvent } from 'react';
+import { ChartPane } from '@/charts/ChartPane';
+import { bindLayout } from '@/state/layout';
+import { useLayoutStore } from '@/state/layoutStore';
+import { useViewStore } from '@/state/viewStore';
 import { REPO_URL } from '@/config';
 import type { Log } from '@/data/types';
 import {
@@ -133,6 +137,7 @@ export function LoadScreen() {
           </div>
         )}
 
+        {log && status.kind !== 'loading' && <TemporaryCharts log={log} />}
         {log && status.kind !== 'loading' && <LogSummary log={log} />}
       </div>
     </main>
@@ -231,5 +236,28 @@ function LogSummary({ log }: { log: Log }) {
         </tbody>
       </table>
     </section>
+  );
+}
+
+// TEMPORARY (Plan B Tasks 5–10): mounts the chart panes until the Workbench shell lands in Task 11.
+function TemporaryCharts({ log }: { log: Log }) {
+  const panes = useLayoutStore((s) => s.panes);
+  const focusedPaneId = useViewStore((s) => s.focusedPaneId);
+  useEffect(() => {
+    useViewStore.getState().resetForLog(log.time);
+    useLayoutStore.getState().ensureLayoutFor(log);
+  }, [log]);
+  const bound = useMemo(
+    () => bindLayout({ ...useLayoutStore.getState(), panes }, log),
+    [panes, log],
+  );
+  return (
+    <div className="flex h-[480px] flex-col gap-1">
+      {bound.map((p) => (
+        <div key={p.id} className="min-h-0 flex-1">
+          <ChartPane pane={p} log={log} focused={p.id === focusedPaneId} />
+        </div>
+      ))}
+    </div>
   );
 }

@@ -81,6 +81,7 @@ export function buildPaneOptions(args: {
     legend: { show: false },
     cursor: {
       sync: { key: SYNC_KEY },
+      y: false,
       drag: { x: true, y: false, setScale: false },
       points: { show: false },
     },
