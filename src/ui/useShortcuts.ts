@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { addMarkerAtCursor } from '@/state/actions';
 import { useViewStore } from '@/state/viewStore';
 import { shortcutFor } from './shortcuts';
 
@@ -52,7 +53,7 @@ export function useShortcuts(onHelp: () => void): void {
           view.zoomToSelection();
           break;
         case 'marker':
-          // Wired up with markers (Plan C Task 9).
+          addMarkerAtCursor();
           break;
         case 'help':
           onHelp();

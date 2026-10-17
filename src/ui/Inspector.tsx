@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useState } from 'react';
 import { formatTime, formatValue } from '@/charts/buildOptions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import type { Channel, Log } from '@/data/types';
 import type { InspectorTab } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
 import { useViewStore } from '@/state/viewStore';
+import { MarkersTab } from './MarkersTab';
 
 const valueAt = (ch: Channel, i: number | null) => {
   if (i == null) return '—';
@@ -17,7 +18,7 @@ const valueAt = (ch: Channel, i: number | null) => {
 };
 
 /** Cursor values, range statistics and markers for the active log, in tabs. */
-export function Inspector({ log, markers }: { log: Log; markers?: ReactNode }) {
+export function Inspector({ log }: { log: Log }) {
   const tab = useLayoutStore((s) => s.inspectorTab);
   const [query, setQuery] = useState('');
   const channels = useMemo(() => filterByQuery(log.channels, query, (c) => c.header), [log, query]);
@@ -50,7 +51,7 @@ export function Inspector({ log, markers }: { log: Log; markers?: ReactNode }) {
           <RangeTab log={log} channels={channels} />
         </TabsContent>
         <TabsContent value="markers" className="flex min-h-0 flex-1 flex-col gap-2">
-          {markers ?? <p className="px-1 text-muted-foreground">No markers yet.</p>}
+          <MarkersTab log={log} />
         </TabsContent>
       </Tabs>
     </aside>

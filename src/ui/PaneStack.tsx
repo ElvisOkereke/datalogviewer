@@ -14,6 +14,7 @@ import type { Log } from '@/data/types';
 import { cn } from '@/lib/utils';
 import { bindLayout, selectedPaneId, type BoundPane } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
+import { addMarkerAtCursor } from '@/state/actions';
 import { useViewStore } from '@/state/viewStore';
 import { ErrorBoundary } from './ErrorBoundary';
 import { CHANNEL_MIME } from './Sidebar';
@@ -88,6 +89,7 @@ function PaneMenu({ pane }: { pane: BoundPane }) {
         >
           Clear
         </DropdownMenuItem>
+        <DropdownMenuItem onSelect={addMarkerAtCursor}>Add marker</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onSelect={() => deletePane(pane.id)}>
           Delete chart

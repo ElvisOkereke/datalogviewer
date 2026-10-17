@@ -70,3 +70,31 @@ describe('tabs', () => {
     expect(useViewStore.getState().selection).toBeNull();
   });
 });
+
+describe('markers tab', () => {
+  beforeEach(async () => {
+    const { useMarkerStore } = await import('@/state/markers');
+    useMarkerStore.setState({ key: null, markers: [] });
+    useLayoutStore.setState({ ...EMPTY_LAYOUT, inspectorTab: 'markers' });
+  });
+
+  test('add, rename and jump to a marker', async () => {
+    render(<Inspector log={log} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Add marker' }));
+    const row = await screen.findByTestId('marker-row');
+    expect(row).toHaveTextContent('Marker 1');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Rename Marker 1' }));
+    const input = screen.getByRole('textbox', { name: 'Marker name' });
+    await userEvent.clear(input);
+    await userEvent.type(input, 'Shift{Enter}');
+    expect(screen.getByTestId('marker-row')).toHaveTextContent('Shift');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Shift' }));
+    expect(useViewStore.getState().pinned).toBe(true);
+    expect(useViewStore.getState().cursor).not.toBeNull();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Shift' }));
+    expect(screen.queryByTestId('marker-row')).toBeNull();
+  });
+});

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import type { Log } from '@/data/types';
 import type { BoundPane } from '@/state/layout';
 import { selectRange } from '@/state/actions';
+import { useMarkerStore } from '@/state/markers';
 import { useViewStore } from '@/state/viewStore';
 import { nearestIndex } from '@/data/timeIndex';
 import { buildPaneOptions, toPlotValues } from './buildOptions';
@@ -133,7 +134,7 @@ export function ChartPane({
       setScale: [(u, key) => key === 'x' && placePinned(u)],
       draw: [
         (u) =>
-          drawOverlays(u, useViewStore.getState().selection, [], {
+          drawOverlays(u, useViewStore.getState().selection, useMarkerStore.getState().markers, {
             accent: theme.cursor,
             drawLabels: showMarkerLabels,
             font: theme.font,
@@ -188,6 +189,17 @@ export function ChartPane({
       uRef.current = null;
     };
   }, [signature, log, theme, axisHeader, showMarkerLabels]);
+
+  // Redraw when markers change; expose their count for tests.
+  useEffect(() => {
+    const mark = (n: number) => rootRef.current && (rootRef.current.dataset.markers = String(n));
+    mark(useMarkerStore.getState().markers.length);
+    return useMarkerStore.subscribe((s, prev) => {
+      if (s.markers === prev.markers) return;
+      mark(s.markers.length);
+      uRef.current?.redraw(false);
+    });
+  }, []);
 
   // Follow the shared x-range and pinned cursor.
   useEffect(
