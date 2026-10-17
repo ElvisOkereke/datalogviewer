@@ -76,6 +76,7 @@ function LegendEntry({
           <DropdownMenuTrigger asChild>
             <button
               type="button"
+              data-legend-entry
               className="flex items-center gap-1.5 rounded-sm px-1.5 py-0.5 hover:bg-accent"
               onMouseEnter={() => ch && onHoverSeries(series.header)}
               onMouseLeave={() => onHoverSeries(null)}
@@ -83,6 +84,7 @@ function LegendEntry({
               <span
                 className="size-2.5 shrink-0 rounded-[2px]"
                 style={{ background: resolveSeriesColor(series.color, mode) }}
+                data-swatch
                 aria-hidden
               />
               <span className={ch ? 'text-muted-foreground' : 'text-muted-foreground line-through'}>

@@ -4,7 +4,9 @@ export type ShortcutAction =
   | { type: 'end' }
   | { type: 'zoom'; factor: number }
   | { type: 'fit' }
-  | { type: 'unpin' }
+  | { type: 'escape' }
+  | { type: 'zoomSelection' }
+  | { type: 'marker' }
   | { type: 'help' };
 
 type KeyInfo = Pick<KeyboardEvent, 'key' | 'shiftKey' | 'ctrlKey' | 'metaKey' | 'altKey'>;
@@ -30,7 +32,13 @@ export function shortcutFor(e: KeyInfo, targetIsEditable: boolean): ShortcutActi
     case 'F':
       return { type: 'fit' };
     case 'Escape':
-      return { type: 'unpin' };
+      return { type: 'escape' };
+    case 'z':
+    case 'Z':
+      return { type: 'zoomSelection' };
+    case 'm':
+    case 'M':
+      return { type: 'marker' };
     case '?':
       return { type: 'help' };
     default:

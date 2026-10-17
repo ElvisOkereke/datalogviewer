@@ -1,7 +1,7 @@
 {
   "name": "datalogviewer",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,6 +23,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^1.59.0",
     "papaparse": "^5.7.0",
+    "plotly.js-gl2d-dist-min": "^4.1.2",
     "radix-ui": "^1.8.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

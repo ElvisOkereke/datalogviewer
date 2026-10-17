@@ -5,10 +5,19 @@ import type { Log } from '@/data/types';
 import {
   defaultLayout,
   EMPTY_LAYOUT,
+  MAX_CALCULATED,
+  MAX_EXPRESSION_CHARS,
+  MAX_NAME_CHARS,
+  MAX_PANES,
+  MAX_SERIES_PER_PANE,
   migrateLayout,
   newPaneId,
+  type CalculatedDef,
+  type InspectorTab,
   type PaneLayout,
   type PersistedLayout,
+  type ScatterConfig,
+  type ViewMode,
 } from './layout';
 
 export interface LayoutState extends PersistedLayout {
@@ -23,15 +32,37 @@ export interface LayoutState extends PersistedLayout {
   setSeriesScale(paneId: string, header: string, scale?: { min?: number; max?: number }): void;
   toggleSharedAxis(paneId: string): void;
   setInspectorOpen(open: boolean): void;
-  setView(view: 'chart' | 'table'): void;
+  setView(view: ViewMode): void;
   setSidebarWidth(px: number): void;
+  setInspectorTab(tab: InspectorTab): void;
+  addCalculated(def: Omit<CalculatedDef, 'id'>): string;
+  updateCalculated(id: string, patch: Partial<Omit<CalculatedDef, 'id'>>): void;
+  removeCalculated(id: string): void;
+  setScatter(cfg: ScatterConfig | null): void;
+  replaceLayout(layout: PersistedLayout): void;
 }
+
+/** Trims a definition to the limits migrateLayout enforces, so what is saved always loads back. */
+function clampDef<T extends Partial<Omit<CalculatedDef, 'id'>>>(def: T): T {
+  const out = { ...def };
+  if (out.name !== undefined) out.name = out.name.slice(0, MAX_NAME_CHARS);
+  if (out.unit !== undefined) out.unit = out.unit.slice(0, MAX_NAME_CHARS);
+  if (out.expression !== undefined) out.expression = out.expression.slice(0, MAX_EXPRESSION_CHARS);
+  return out;
+}
+
+export const LAYOUT_KEY = 'dlv.layout.v2';
+const LEGACY_LAYOUT_KEY = 'dlv.layout.v1';
 
 /** localStorage that never throws: private windows and full quotas just stop remembering. */
 const safeStorage: StateStorage = {
   getItem: (key) => {
     try {
-      return localStorage.getItem(key);
+      // First run after the v2 upgrade: start from the v1 layout (migrated in `migrate`).
+      return (
+        localStorage.getItem(key) ??
+        (key === LAYOUT_KEY ? localStorage.getItem(LEGACY_LAYOUT_KEY) : null)
+      );
     } catch {
       return null;
     }
@@ -79,6 +110,9 @@ export const useLayoutStore = create<LayoutState>()(
           set({ panes: defaultLayout(log).panes });
         },
         addPane() {
+          // At the cap, hand back the last pane rather than build a layout that won't load.
+          const panes = get().panes;
+          if (panes.length >= MAX_PANES) return panes[panes.length - 1].id;
           const id = newPaneId();
           set({ panes: evenly([...get().panes, { id, size: 0, sharedAxis: false, series: [] }]) });
           return id;
@@ -91,7 +125,7 @@ export const useLayoutStore = create<LayoutState>()(
         },
         addSeries(paneId, header) {
           updatePane(paneId, (p) =>
-            p.series.some((s) => s.header === header)
+            p.series.some((s) => s.header === header) || p.series.length >= MAX_SERIES_PER_PANE
               ? p
               : {
                   ...p,
@@ -136,18 +170,47 @@ export const useLayoutStore = create<LayoutState>()(
         setSidebarWidth(sidebarWidth) {
           set({ sidebarWidth });
         },
+        setInspectorTab(inspectorTab) {
+          set({ inspectorTab });
+        },
+        addCalculated(def) {
+          if (get().calculated.length >= MAX_CALCULATED) return '';
+          const id = `k-${Math.random().toString(36).slice(2, 10)}`;
+          set({ calculated: [...get().calculated, { id, ...clampDef(def) }] });
+          return id;
+        },
+        updateCalculated(id, patch) {
+          set({
+            calculated: get().calculated.map((d) =>
+              d.id === id ? { ...d, ...clampDef(patch) } : d,
+            ),
+          });
+        },
+        removeCalculated(id) {
+          set({ calculated: get().calculated.filter((d) => d.id !== id) });
+        },
+        setScatter(scatter) {
+          set({ scatter });
+        },
+        replaceLayout(layout) {
+          set({ ...migrateLayout(layout) });
+        },
       };
     },
     {
-      name: 'dlv.layout.v1',
-      version: 1,
+      name: LAYOUT_KEY,
+      version: 2,
+      migrate: (persisted) => migrateLayout(persisted),
       storage: createJSONStorage(() => safeStorage),
-      partialize: ({ version, panes, sidebarWidth, inspectorOpen, view }): PersistedLayout => ({
-        version,
-        panes,
-        sidebarWidth,
-        inspectorOpen,
-        view,
+      partialize: (s): PersistedLayout => ({
+        version: s.version,
+        panes: s.panes,
+        sidebarWidth: s.sidebarWidth,
+        inspectorOpen: s.inspectorOpen,
+        inspectorTab: s.inspectorTab,
+        view: s.view,
+        calculated: s.calculated,
+        scatter: s.scatter,
       }),
       merge: (persisted, current) => ({ ...current, ...migrateLayout(persisted) }),
     },

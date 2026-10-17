@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 import { LogParseError } from '@/data/errors';
 import type { Log } from '@/data/types';
+import { MAX_HEADER_CHARS } from '@/data/channels';
 import { parseCsvText } from '@/io/csv/parseCsv';
 
 const parse = (text: string) => parseCsvText(text, { fileName: 'test.csv', encoding: 'utf-8' });
@@ -274,4 +275,13 @@ describe('final review fixes', () => {
     expect(log.timeSource).toEqual({ kind: 'index' });
     expect(codes(log)).toContain('time-constant');
   });
+});
+
+test('absurdly long headers are shortened (layouts refuse longer ones) and stay unique', () => {
+  const long = 'H'.repeat(5000);
+  const log = parse(`Time (s),${long},${long}\n0,1,2\n1,3,4`);
+  const [a, b] = log.channels.filter((c) => c.header.startsWith('HHH'));
+  expect(a.header.length).toBeLessThanOrEqual(MAX_HEADER_CHARS);
+  expect(b.header.length).toBeLessThanOrEqual(MAX_HEADER_CHARS);
+  expect(a.header).not.toBe(b.header);
 });

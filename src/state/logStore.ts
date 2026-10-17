@@ -3,6 +3,7 @@ import { LogParseError, type LogErrorCode } from '@/data/errors';
 import type { Log } from '@/data/types';
 import { parseFileInWorker } from '@/workers/parseClient';
 import { useLayoutStore } from './layoutStore';
+import { useMarkerStore } from './markers';
 import { useViewStore } from './viewStore';
 
 export type ParseFn = (
@@ -76,6 +77,7 @@ export function createLogStore(
         // Reset the view before readers see the new log, so no stale cursor indexes its arrays.
         useViewStore.getState().resetForLog(log.time);
         useLayoutStore.getState().ensureLayoutFor(log);
+        useMarkerStore.getState().load(log);
         // Tier 1 shows one log at a time; the map shape is kept for log comparison later.
         set({ logs: { [log.id]: log }, activeLogId: log.id, status: { kind: 'idle' } });
       } catch (err) {

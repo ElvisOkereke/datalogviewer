@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { parseCsvText } from '@/io/csv/parseCsv';
-import { EMPTY_LAYOUT } from '@/state/layout';
+import { EMPTY_LAYOUT, migrateLayout } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
 
 const log = parseCsvText('Time (s),RPM,MAP (kPa),AFR\n0,800,30,14.7\n0.05,810,31,14.6', {
@@ -86,10 +86,10 @@ test('setPaneSizes, view, inspector and sidebar width', () => {
   expect(layout().panes.map((p) => p.size)).toEqual([70, 30]);
 });
 
-test('persists under dlv.layout.v1', () => {
+test('persists under dlv.layout.v2', () => {
   layout().addPane();
-  const raw = localStorage.getItem('dlv.layout.v1');
-  expect(raw).toContain('"version":1');
+  const raw = localStorage.getItem('dlv.layout.v2');
+  expect(raw).toContain('"version":2');
   expect(raw).toContain('"panes"');
 });
 
@@ -107,4 +107,94 @@ test('a new series takes a colour not used in any pane (colour follows the chann
   layout().addSeries(a, 'RPM');
   layout().addSeries(b, 'AFR');
   expect(layout().panes.map((p) => p.series[0].color)).toEqual(['s1', 's2']);
+});
+
+describe('v2 actions', () => {
+  test('calculated definitions are clamped so the saved layout always loads back', () => {
+    const id = layout().addCalculated({
+      name: 'n'.repeat(150),
+      unit: 'u'.repeat(150),
+      expression: 'x'.repeat(3000),
+    });
+    expect(layout().calculated[0]).toMatchObject({
+      name: 'n'.repeat(100),
+      unit: 'u'.repeat(100),
+      expression: 'x'.repeat(2000),
+    });
+    layout().updateCalculated(id, { name: 'm'.repeat(150) });
+    expect(layout().calculated[0].name).toBe('m'.repeat(100));
+    expect(migrateLayout(JSON.parse(JSON.stringify(layout()))).calculated).toHaveLength(1);
+  });
+
+  test('calculated channel definitions can be added, updated and removed', () => {
+    const id = layout().addCalculated({ name: 'Lambda', expression: '[AFR] / 14.7' });
+    expect(layout().calculated).toEqual([{ id, name: 'Lambda', expression: '[AFR] / 14.7' }]);
+    layout().updateCalculated(id, { unit: 'λ', expression: '[AFR]/14.68' });
+    expect(layout().calculated[0]).toMatchObject({ unit: 'λ', expression: '[AFR]/14.68' });
+    layout().removeCalculated(id);
+    expect(layout().calculated).toEqual([]);
+  });
+
+  test('inspector tab, scatter config and view', () => {
+    layout().setInspectorTab('markers');
+    layout().setScatter({ x: 'RPM', y: 'AFR' });
+    layout().setView('scatter');
+    expect(layout()).toMatchObject({
+      inspectorTab: 'markers',
+      scatter: { x: 'RPM', y: 'AFR' },
+      view: 'scatter',
+    });
+  });
+
+  test('replaceLayout swaps the whole layout', () => {
+    layout().addPane();
+    layout().replaceLayout({ ...EMPTY_LAYOUT, sidebarWidth: 300 });
+    expect(layout()).toMatchObject({ panes: [], sidebarWidth: 300 });
+  });
+
+  test('a saved v1 layout is picked up and upgraded on first run', async () => {
+    localStorage.clear();
+    localStorage.setItem(
+      'dlv.layout.v1',
+      JSON.stringify({
+        state: {
+          version: 1,
+          panes: [{ id: 'old', size: 100, sharedAxis: false, series: [] }],
+          sidebarWidth: 240,
+          inspectorOpen: false,
+          view: 'chart',
+        },
+        version: 1,
+      }),
+    );
+    await useLayoutStore.persist.rehydrate();
+    expect(layout()).toMatchObject({ version: 2, panes: [{ id: 'old' }], calculated: [] });
+  });
+});
+
+describe('caps are enforced where layouts are built, so a saved layout always loads back', () => {
+  test('no more than 32 panes', () => {
+    for (let i = 0; i < 40; i++) layout().addPane();
+    expect(layout().panes).toHaveLength(32);
+  });
+
+  test('no more than 32 series in a pane', () => {
+    const id = layout().addPane();
+    for (let i = 0; i < 40; i++) layout().addSeries(id, `C${i}`);
+    expect(layout().panes[0].series).toHaveLength(32);
+  });
+
+  test('no more than 64 calculated channels', () => {
+    for (let i = 0; i < 70; i++) layout().addCalculated({ name: `N${i}`, expression: '1' });
+    expect(layout().calculated).toHaveLength(64);
+  });
+
+  test('a layout built at the caps survives a save and reload', async () => {
+    for (let i = 0; i < 40; i++) layout().addPane();
+    const saved = localStorage.getItem('dlv.layout.v2');
+    useLayoutStore.setState({ ...EMPTY_LAYOUT });
+    localStorage.setItem('dlv.layout.v2', saved!);
+    await useLayoutStore.persist.rehydrate();
+    expect(layout().panes).toHaveLength(32);
+  });
 });

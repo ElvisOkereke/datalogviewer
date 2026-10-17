@@ -4,6 +4,8 @@ import 'uplot/dist/uPlot.min.css';
 import { cn } from '@/lib/utils';
 import type { Log } from '@/data/types';
 import type { BoundPane } from '@/state/layout';
+import { selectRange } from '@/state/actions';
+import { useMarkerStore } from '@/state/markers';
 import { useViewStore } from '@/state/viewStore';
 import { nearestIndex } from '@/data/timeIndex';
 import { buildPaneOptions, toPlotValues } from './buildOptions';
@@ -11,6 +13,7 @@ import { readChartTheme, type ChartTheme } from './chartTheme';
 import { Legend } from './Legend';
 import { decimateMinMax, planWindow } from './decimate';
 import { navigationPlugin } from './navigation';
+import { drawOverlays } from './overlays';
 import type { XRange } from './range';
 
 const navigation = (time: Float64Array) => {
@@ -19,6 +22,7 @@ const navigation = (time: Float64Array) => {
     zoomAt: (anchor, factor) => view().zoomAt(anchor, factor),
     pan: (delta) => view().pan(delta),
     setRange: (r) => view().setRange(r),
+    select: (r) => selectRange(r),
     fit: () => view().fit(),
     // Plotted data may be decimated, so positions map to log rows by time, not by data index.
     pinAt: (t) => view().pin(nearestIndex(time, t)),
@@ -33,8 +37,20 @@ function markRange(el: HTMLElement | null, r: XRange) {
   el.dataset.xMax = String(r.max);
 }
 
+/** Exposes the selection on the pane for tests and debugging. */
+function markSelection(el: HTMLElement | null, sel: XRange | null) {
+  if (!el) return;
+  if (sel) {
+    el.dataset.selMin = String(sel.min);
+    el.dataset.selMax = String(sel.max);
+  } else {
+    delete el.dataset.selMin;
+    delete el.dataset.selMax;
+  }
+}
+
 /** Re-reads chart colours whenever the app theme (data-theme on <html>) changes. */
-function useChartTheme(): ChartTheme {
+export function useChartTheme(): ChartTheme {
   const [theme, setTheme] = useState(readChartTheme);
   useEffect(() => {
     const observer = new MutationObserver(() => setTheme(readChartTheme()));
@@ -54,7 +70,18 @@ function useDebounced<T>(value: T, ms: number): T {
   return debounced;
 }
 
-export function ChartPane({ pane, log, focused }: { pane: BoundPane; log: Log; focused: boolean }) {
+export function ChartPane({
+  pane,
+  log,
+  focused,
+  showMarkerLabels = false,
+}: {
+  pane: BoundPane;
+  log: Log;
+  focused: boolean;
+  /** Marker labels are drawn on the first pane only. */
+  showMarkerLabels?: boolean;
+}) {
   const rootRef = useRef<HTMLDivElement>(null);
   const plotRef = useRef<HTMLDivElement>(null);
   const uRef = useRef<uPlot | null>(null);
@@ -105,6 +132,14 @@ export function ChartPane({ pane, log, focused }: { pane: BoundPane; log: Log; f
     };
     opts.hooks = {
       setScale: [(u, key) => key === 'x' && placePinned(u)],
+      draw: [
+        (u) =>
+          drawOverlays(u, useViewStore.getState().selection, useMarkerStore.getState().markers, {
+            accent: theme.cursor,
+            drawLabels: showMarkerLabels,
+            font: theme.font,
+          }),
+      ],
       setCursor: [
         (u) => {
           const left = u.cursor.left;
@@ -137,6 +172,7 @@ export function ChartPane({ pane, log, focused }: { pane: BoundPane; log: Log; f
     const { range, bounds } = useViewStore.getState();
     const r = range ?? bounds;
     if (r) showRef.current(r);
+    markSelection(rootRef.current, useViewStore.getState().selection);
 
     const observer = new ResizeObserver(([entry]) => {
       const box = entry.contentRect;
@@ -152,7 +188,18 @@ export function ChartPane({ pane, log, focused }: { pane: BoundPane; log: Log; f
       u.destroy();
       uRef.current = null;
     };
-  }, [signature, log, theme, axisHeader]);
+  }, [signature, log, theme, axisHeader, showMarkerLabels]);
+
+  // Redraw when markers change; expose their count for tests.
+  useEffect(() => {
+    const mark = (n: number) => rootRef.current && (rootRef.current.dataset.markers = String(n));
+    mark(useMarkerStore.getState().markers.length);
+    return useMarkerStore.subscribe((s, prev) => {
+      if (s.markers === prev.markers) return;
+      mark(s.markers.length);
+      uRef.current?.redraw(false);
+    });
+  }, []);
 
   // Follow the shared x-range and pinned cursor.
   useEffect(
@@ -162,6 +209,10 @@ export function ChartPane({ pane, log, focused }: { pane: BoundPane; log: Log; f
         if (!u) return;
         const r = s.range ?? s.bounds;
         if (r && (s.range !== prev.range || s.bounds !== prev.bounds)) showRef.current(r);
+        if (s.selection !== prev.selection) {
+          u.redraw(false);
+          markSelection(rootRef.current, s.selection);
+        }
         if (
           s.pinned &&
           s.cursor != null &&

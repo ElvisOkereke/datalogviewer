@@ -6,12 +6,14 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import type { Log } from '@/data/types';
 import { cn } from '@/lib/utils';
+import type { ViewMode } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
 import { useTheme } from './useTheme';
 
@@ -52,6 +54,10 @@ export function Toolbar({
   onOpen,
   onShowShortcuts,
   onShowAbout,
+  onSaveLayout,
+  onOpenLayout,
+  onExportCsv,
+  onExportPng,
   leading,
   compact = false,
 }: {
@@ -59,6 +65,10 @@ export function Toolbar({
   onOpen(): void;
   onShowShortcuts(): void;
   onShowAbout(): void;
+  onSaveLayout(): void;
+  onOpenLayout(): void;
+  onExportCsv(): void;
+  onExportPng(): void;
   /** Extra controls at the start (e.g. the channels drawer button on narrow screens). */
   leading?: ReactNode;
   /** Narrow screens: secondary actions move into the overflow menu. */
@@ -68,6 +78,8 @@ export function Toolbar({
   const inspectorOpen = useLayoutStore((s) => s.inspectorOpen);
   const { pref, cycle } = useTheme();
   const ThemeIcon = THEME_ICON[pref];
+  // Three view buttons must still leave room for the rest of the toolbar on a phone.
+  const viewItemClass = compact ? 'px-2 text-xs' : 'px-3 text-xs';
   const duration = log && log.rowCount > 0 ? log.time[log.rowCount - 1] : null;
 
   return (
@@ -100,12 +112,15 @@ export function Toolbar({
             variant="outline"
             aria-label="View"
             value={view}
-            onValueChange={(v) => v && useLayoutStore.getState().setView(v as 'chart' | 'table')}
+            onValueChange={(v) => v && useLayoutStore.getState().setView(v as ViewMode)}
           >
-            <ToggleGroupItem value="chart" className="px-3 text-xs">
+            <ToggleGroupItem value="chart" className={viewItemClass}>
               Chart
             </ToggleGroupItem>
-            <ToggleGroupItem value="table" className="px-3 text-xs">
+            <ToggleGroupItem value="scatter" className={viewItemClass}>
+              Scatter
+            </ToggleGroupItem>
+            <ToggleGroupItem value="table" className={viewItemClass}>
               Table
             </ToggleGroupItem>
           </ToggleGroup>
@@ -120,6 +135,8 @@ export function Toolbar({
                 <DropdownMenuItem onSelect={() => useLayoutStore.getState().resetLayout(log)}>
                   Reset layout
                 </DropdownMenuItem>
+                <DropdownMenuItem onSelect={onSaveLayout}>Save layout to file…</DropdownMenuItem>
+                <DropdownMenuItem onSelect={onOpenLayout}>Open layout file…</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}
@@ -158,6 +175,12 @@ export function Toolbar({
               Reset layout
             </DropdownMenuItem>
           )}
+          {compact && log && (
+            <DropdownMenuItem onSelect={onSaveLayout}>Save layout to file…</DropdownMenuItem>
+          )}
+          {compact && log && (
+            <DropdownMenuItem onSelect={onOpenLayout}>Open layout file…</DropdownMenuItem>
+          )}
           {compact && (
             <DropdownMenuItem
               onSelect={(e) => {
@@ -167,6 +190,13 @@ export function Toolbar({
             >
               <ThemeIcon className="size-4" /> Theme: {pref}
             </DropdownMenuItem>
+          )}
+          {log && (
+            <>
+              <DropdownMenuItem onSelect={onExportCsv}>Export CSV</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onExportPng}>Export PNG</DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
           )}
           <DropdownMenuItem onSelect={onShowShortcuts}>Keyboard shortcuts</DropdownMenuItem>
           <DropdownMenuItem onSelect={onShowAbout}>About</DropdownMenuItem>

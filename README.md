@@ -13,19 +13,25 @@ Free, fast datalog viewer for CSV logs, right in your browser.
 ## Features
 
 - Stacked charts with a crosshair shared across every chart; each channel gets its own scale.
-- Mouse-wheel zoom, drag to pan, Shift+drag to zoom to a range, double-click to see the whole log.
+- Mouse-wheel zoom, drag to pan, double-click to see the whole log.
 - Click to pin the cursor, then step through samples with the arrow keys.
 - Overview strip of the whole log with a draggable window.
 - Searchable channel list: click or drag a channel onto a chart.
 - Inspector panel with every channel's value at the cursor, and a table view of the raw data.
 - Your layout is remembered and reconnects to channels by name when you open the next log.
+- **Calculated channels** from formulas like `[AFR] / 14.7` or `smooth([MAP], 5)`, with live validation.
+- **Range statistics:** Shift+drag to select a stretch of the log and see min / mean / max / std for every channel; Z zooms to it.
+- **Markers:** press M to mark a moment; markers are listed, renamable and come back when you reopen the file.
+- **Layout files:** save your charts and calculated channels to a file and share them.
+- **Scatter plots** of any two channels, optionally coloured by a third, over the view, a selection or the whole log.
+- **Export** the visible range or selection as CSV, and the charts or scatter plot as a PNG image.
 - Dark and light themes; works on phones with touch gestures.
 
 Press <kbd>?</kbd> in the app for all keyboard shortcuts.
 
 ## Roadmap
 
-- **v0.2, analyst:** calculated channels, scatter plots, range stats, markers, export.
+- **v0.2, analyst (done):** calculated channels, range stats, markers, layout files, scatter plots, PNG/CSV export.
 - **v0.3+, MegaLogViewer rival:** RPM × MAP tables, log comparison, filters, more formats, offline install.
 
 ## Feedback

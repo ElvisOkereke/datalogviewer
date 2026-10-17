@@ -15,7 +15,7 @@ export interface Channel {
   header: string;
   name: string;
   unit?: string;
-  kind: 'numeric' | 'text';
+  kind: 'numeric' | 'text' | 'calculated';
   /** Numeric channels: one value per row, NaN for blank/invalid cells. */
   values: Float64Array | null;
   /** Text channels only. */

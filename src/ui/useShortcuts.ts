@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { addMarkerAtCursor } from '@/state/actions';
 import { useViewStore } from '@/state/viewStore';
 import { shortcutFor } from './shortcuts';
 
@@ -43,8 +44,16 @@ export function useShortcuts(onHelp: () => void): void {
         case 'fit':
           view.fit();
           break;
-        case 'unpin':
-          view.unpin();
+        case 'escape':
+          // First Esc clears a selection; the next releases a pinned cursor.
+          if (view.selection) view.clearSelection();
+          else view.unpin();
+          break;
+        case 'zoomSelection':
+          view.zoomToSelection();
+          break;
+        case 'marker':
+          addMarkerAtCursor();
           break;
         case 'help':
           onHelp();

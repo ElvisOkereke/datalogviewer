@@ -1,12 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Menu } from 'lucide-react';
 import { OverviewStrip } from '@/charts/OverviewStrip';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { Log, ParseWarning } from '@/data/types';
-import { bindLayout } from '@/state/layout';
+import { bindLayout, migrateLayout, type PersistedLayout } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
 import { LARGE_FILE_BYTES, selectActiveLog, useLogStore } from '@/state/logStore';
 import { useViewStore } from '@/state/viewStore';
@@ -21,9 +31,16 @@ import { PaneStack } from './PaneStack';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { Sidebar } from './Sidebar';
 import { Toolbar } from './Toolbar';
+import { downloadBlob } from './download';
+import { exportCsvOrExplain, exportPng } from './exports';
+import { parseLayoutFile, serializeLayout } from './layoutFile';
 import { useFileDrop } from './useFileDrop';
 import { useIsNarrow } from './useIsNarrow';
 import { useShortcuts } from './useShortcuts';
+import { useWorkbenchLog } from './useWorkbenchLog';
+import { ScatterView } from './ScatterView';
+
+const MAX_LAYOUT_FILE_BYTES = 1024 * 1024;
 
 /** Resets the view, applies a layout and summarises warnings whenever a new log becomes active. */
 function useOnNewLog(log: Log | null, showWarnings: (w: ParseWarning[]) => void) {
@@ -44,13 +61,23 @@ function useOnNewLog(log: Log | null, showWarnings: (w: ParseWarning[]) => void)
   }, [log, showWarnings]);
 }
 
+const VIEW_LABEL = {
+  chart: 'the charts',
+  scatter: 'the scatter view',
+  table: 'the table',
+} as const;
+
 function Workbench({
   log,
+  calcErrors,
+  onScatterExportReady,
   narrow,
   channelsOpen,
   setChannelsOpen,
 }: {
   log: Log;
+  calcErrors: Record<string, string>;
+  onScatterExportReady(exporter: ((fileName: string) => void) | null): void;
   narrow: boolean;
   channelsOpen: boolean;
   setChannelsOpen(open: boolean): void;
@@ -72,11 +99,17 @@ function Workbench({
   const main = (
     <main className="flex min-w-0 flex-1 flex-col">
       <div className="min-h-0 flex-1">
-        <ErrorBoundary resetKey={log.id} label={view === 'chart' ? 'the charts' : 'the table'}>
-          {view === 'chart' ? <PaneStack log={log} resizable={!narrow} /> : <DataTable log={log} />}
+        <ErrorBoundary resetKey={log.id} label={VIEW_LABEL[view]}>
+          {view === 'chart' ? (
+            <PaneStack log={log} resizable={!narrow} />
+          ) : view === 'scatter' ? (
+            <ScatterView log={log} onExportReady={onScatterExportReady} />
+          ) : (
+            <DataTable log={log} />
+          )}
         </ErrorBoundary>
       </div>
-      {view === 'chart' && <OverviewStrip log={log} channel={overviewChannel} />}
+      {view !== 'table' && <OverviewStrip log={log} channel={overviewChannel} />}
     </main>
   );
 
@@ -89,7 +122,7 @@ function Workbench({
             <SheetHeader className="sr-only">
               <SheetTitle>Channels</SheetTitle>
             </SheetHeader>
-            <Sidebar log={log} onPlotted={() => setChannelsOpen(false)} />
+            <Sidebar log={log} calcErrors={calcErrors} onPlotted={() => setChannelsOpen(false)} />
           </SheetContent>
         </Sheet>
         <Sheet open={inspectorOpen} onOpenChange={setInspectorOpen}>
@@ -110,7 +143,7 @@ function Workbench({
     <div className="flex min-h-0 flex-1">
       <div className="shrink-0" style={{ width: sidebarWidth }}>
         <ErrorBoundary resetKey={log.id} label="the channel list">
-          <Sidebar log={log} />
+          <Sidebar log={log} calcErrors={calcErrors} />
         </ErrorBoundary>
       </div>
       {main}
@@ -126,8 +159,34 @@ function Workbench({
 }
 
 export function AppShell() {
-  const log = useLogStore(selectActiveLog);
+  // Side effects of opening a file follow the raw log; views read the workbench log, which
+  // also changes whenever a calculated channel is edited.
+  const rawLog = useLogStore(selectActiveLog);
+  const { log, calcErrors } = useWorkbenchLog();
   const inputRef = useRef<HTMLInputElement>(null);
+  const layoutInputRef = useRef<HTMLInputElement>(null);
+  const scatterExporter = useRef<((fileName: string) => void) | null>(null);
+  const onScatterExportReady = useCallback((fn: ((fileName: string) => void) | null) => {
+    scatterExporter.current = fn;
+  }, []);
+  const [pendingLayout, setPendingLayout] = useState<PersistedLayout | null>(null);
+  const saveLayout = () =>
+    downloadBlob(
+      new Blob([serializeLayout(migrateLayout(useLayoutStore.getState()))], {
+        type: 'application/json',
+      }),
+      'datalogviewer-layout.dlvlayout.json',
+    );
+  const openLayoutFile = async (file: File) => {
+    // Real layout files are a few KB; refuse anything big before reading it.
+    if (file.size > MAX_LAYOUT_FILE_BYTES) {
+      toast.error('This layout file is too large.');
+      return;
+    }
+    const layout = parseLayoutFile(await file.text());
+    if (layout) setPendingLayout(layout);
+    else toast.error("This isn't a DataLogViewer layout file.");
+  };
   const [pendingLarge, setPendingLarge] = useState<File | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -141,7 +200,7 @@ export function AppShell() {
   }, []);
   const dragging = useFileDrop(openFile);
   useShortcuts(useCallback(() => setShortcutsOpen(true), []));
-  useOnNewLog(log, setWarnings);
+  useOnNewLog(rawLog, setWarnings);
   const chooseFile = () => inputRef.current?.click();
 
   return (
@@ -151,6 +210,10 @@ export function AppShell() {
         onOpen={chooseFile}
         onShowShortcuts={() => setShortcutsOpen(true)}
         onShowAbout={() => setAboutOpen(true)}
+        onSaveLayout={saveLayout}
+        onOpenLayout={() => layoutInputRef.current?.click()}
+        onExportCsv={() => log && exportCsvOrExplain(log)}
+        onExportPng={() => log && exportPng(log, scatterExporter.current)}
         compact={narrow}
         leading={
           narrow && log ? (
@@ -179,10 +242,46 @@ export function AppShell() {
           e.target.value = '';
         }}
       />
+      <input
+        ref={layoutInputRef}
+        type="file"
+        aria-label="Open layout file"
+        accept=".json,application/json"
+        className="sr-only"
+        tabIndex={-1}
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void openLayoutFile(file);
+          e.target.value = '';
+        }}
+      />
+      <AlertDialog open={pendingLayout !== null} onOpenChange={(o) => !o && setPendingLayout(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace your current layout?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The charts, calculated channels and scatter settings from the file will replace yours.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingLayout) useLayoutStore.getState().replaceLayout(pendingLayout);
+                setPendingLayout(null);
+              }}
+            >
+              Replace
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {log ? (
         <ErrorBoundary resetKey={log.id} label="the workbench">
           <Workbench
             log={log}
+            calcErrors={calcErrors}
+            onScatterExportReady={onScatterExportReady}
             narrow={narrow}
             channelsOpen={channelsOpen}
             setChannelsOpen={setChannelsOpen}

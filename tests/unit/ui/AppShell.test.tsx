@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { parseCsvText } from '@/io/csv/parseCsv';
 import { EMPTY_LAYOUT } from '@/state/layout';
@@ -92,4 +92,80 @@ test('a very large file asks before loading', async () => {
   expect(loadFile).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole('button', { name: 'Load anyway' }));
   expect(loadFile).toHaveBeenCalledWith(big);
+});
+
+describe('calculated channels', () => {
+  test('a definition in the layout shows as an fx channel in the sidebar', () => {
+    useLayoutStore.setState({
+      ...EMPTY_LAYOUT,
+      calculated: [{ id: 'k', name: 'Double RPM', expression: '[RPM] * 2' }],
+    });
+    renderShell();
+    loadLog();
+    const row = screen
+      .getAllByTestId('channel-row')
+      .find((r) => r.textContent?.includes('Double RPM'))!;
+    expect(row).toHaveTextContent('fx');
+    expect(row).toHaveAttribute('aria-disabled', 'false');
+  });
+
+  test('a definition this log cannot satisfy is listed with the reason, and the app still renders', () => {
+    useLayoutStore.setState({
+      ...EMPTY_LAYOUT,
+      calculated: [{ id: 'k', name: 'Ratio', expression: '[Lambda] * 2' }],
+    });
+    renderShell();
+    loadLog();
+    expect(screen.getByTestId('calc-unavailable')).toHaveTextContent('Ratio');
+    expect(screen.getByTestId('calc-unavailable')).toHaveTextContent('needs [Lambda]');
+    expect(screen.getAllByTestId('chart-pane').length).toBeGreaterThan(0);
+  });
+});
+
+describe('layout files', () => {
+  const file = (text: string) =>
+    new File([text], 'shared.dlvlayout.json', { type: 'application/json' });
+
+  test('opening a valid layout file asks first, then replaces the layout', async () => {
+    renderShell();
+    loadLog();
+    const text = JSON.stringify({
+      app: 'DataLogViewer',
+      kind: 'layout',
+      ...EMPTY_LAYOUT,
+      calculated: [{ id: 'k', name: 'Shared', expression: '[RPM] / 2' }],
+    });
+    fireEvent.change(screen.getByLabelText('Open layout file'), {
+      target: { files: [file(text)] },
+    });
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      'Replace your current layout?',
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'Replace' }));
+    expect(useLayoutStore.getState().calculated.map((d) => d.name)).toEqual(['Shared']);
+  });
+
+  test('an invalid file changes nothing', async () => {
+    renderShell();
+    loadLog();
+    const before = useLayoutStore.getState().panes;
+    fireEvent.change(screen.getByLabelText('Open layout file'), {
+      target: { files: [file('[]')] },
+    });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(useLayoutStore.getState().panes).toBe(before);
+  });
+});
+
+test('an oversized layout file is refused before it is read', async () => {
+  renderShell();
+  loadLog();
+  const big = new File(['{}'], 'huge.dlvlayout.json');
+  Object.defineProperty(big, 'size', { value: 2 * 1024 * 1024 });
+  const text = vi.spyOn(big, 'text');
+  fireEvent.change(screen.getByLabelText('Open layout file'), { target: { files: [big] } });
+  await new Promise((r) => setTimeout(r, 20));
+  expect(text).not.toHaveBeenCalled();
+  expect(screen.queryByRole('alertdialog')).toBeNull();
 });

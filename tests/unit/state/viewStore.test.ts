@@ -1,4 +1,4 @@
-import { beforeEach, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test } from 'vitest';
 import { useViewStore } from '@/state/viewStore';
 
 const view = () => useViewStore.getState();
@@ -74,4 +74,32 @@ test('stepCursor starts at the first visible sample, pins, and clamps', () => {
 test('focusPane records the focused pane', () => {
   view().focusPane('p2');
   expect(view().focusedPaneId).toBe('p2');
+});
+
+describe('range selection', () => {
+  test('select, zoom to it, clear', () => {
+    view().resetForLog(time40);
+    view().select({ min: 10, max: 20 });
+    expect(view().selection).toEqual({ min: 10, max: 20 });
+    expect(view().range).toBeNull();
+    view().zoomToSelection();
+    expect(view().range).toEqual({ min: 10, max: 20 });
+    view().clearSelection();
+    expect(view().selection).toBeNull();
+  });
+
+  test('a selection is clamped to the log and ignored if narrower than the minimum span', () => {
+    view().resetForLog(time40);
+    view().select({ min: -5, max: 5 });
+    expect(view().selection).toEqual({ min: 0, max: 5 });
+    view().select({ min: 7, max: 7.2 });
+    expect(view().selection).toEqual({ min: 0, max: 5 });
+  });
+
+  test('loading another log clears the selection', () => {
+    view().resetForLog(time40);
+    view().select({ min: 10, max: 20 });
+    view().resetForLog(time5);
+    expect(view().selection).toBeNull();
+  });
 });
