@@ -50,7 +50,7 @@ function markSelection(el: HTMLElement | null, sel: XRange | null) {
 }
 
 /** Re-reads chart colours whenever the app theme (data-theme on <html>) changes. */
-function useChartTheme(): ChartTheme {
+export function useChartTheme(): ChartTheme {
   const [theme, setTheme] = useState(readChartTheme);
   useEffect(() => {
     const observer = new MutationObserver(() => setTheme(readChartTheme()));

@@ -97,3 +97,15 @@ test('range statistics: Shift+drag shows the Range tab with values', async ({ pa
   await expect(rpm).toContainText(/\d,\d{3}/);
   await expect(page.getByText(/samples/)).toBeVisible();
 });
+
+test('scatter view: loads Plotly on demand and plots the first two channels', async ({ page }) => {
+  await loadDemo(page);
+  await page.getByRole('radio', { name: 'Scatter' }).click();
+  const plot = page.locator('.js-plotly-plot');
+  await expect(plot.locator('canvas').first()).toBeVisible({ timeout: 15_000 });
+  await expect(plot.locator('.xtitle')).toHaveText('Engine Speed (rpm)');
+  await expect(plot.locator('.ytitle')).toHaveText('MAP (kPa)');
+
+  await page.getByLabel('Colour by').selectOption({ index: 3 });
+  await expect(plot.locator('.colorbar')).toHaveCount(1);
+});

@@ -37,6 +37,7 @@ import { useFileDrop } from './useFileDrop';
 import { useIsNarrow } from './useIsNarrow';
 import { useShortcuts } from './useShortcuts';
 import { useWorkbenchLog } from './useWorkbenchLog';
+import { ScatterView } from './ScatterView';
 
 const MAX_LAYOUT_FILE_BYTES = 1024 * 1024;
 
@@ -58,6 +59,12 @@ function useOnNewLog(log: Log | null, showWarnings: (w: ParseWarning[]) => void)
     }
   }, [log, showWarnings]);
 }
+
+const VIEW_LABEL = {
+  chart: 'the charts',
+  scatter: 'the scatter view',
+  table: 'the table',
+} as const;
 
 function Workbench({
   log,
@@ -89,11 +96,17 @@ function Workbench({
   const main = (
     <main className="flex min-w-0 flex-1 flex-col">
       <div className="min-h-0 flex-1">
-        <ErrorBoundary resetKey={log.id} label={view === 'chart' ? 'the charts' : 'the table'}>
-          {view === 'chart' ? <PaneStack log={log} resizable={!narrow} /> : <DataTable log={log} />}
+        <ErrorBoundary resetKey={log.id} label={VIEW_LABEL[view]}>
+          {view === 'chart' ? (
+            <PaneStack log={log} resizable={!narrow} />
+          ) : view === 'scatter' ? (
+            <ScatterView log={log} />
+          ) : (
+            <DataTable log={log} />
+          )}
         </ErrorBoundary>
       </div>
-      {view === 'chart' && <OverviewStrip log={log} channel={overviewChannel} />}
+      {view !== 'table' && <OverviewStrip log={log} channel={overviewChannel} />}
     </main>
   );
 

@@ -21,7 +21,11 @@ test('choosing channels updates the saved scatter configuration', async () => {
   render(<ScatterControls log={log} scope="view" onScope={vi.fn()} />);
   await userEvent.selectOptions(screen.getByLabelText('X axis'), 'AFR');
   await userEvent.selectOptions(screen.getByLabelText('Colour by'), 'MAP (kPa)');
-  expect(useLayoutStore.getState().scatter).toEqual({ x: 'AFR', y: 'MAP (kPa)', color: 'MAP (kPa)' });
+  expect(useLayoutStore.getState().scatter).toEqual({
+    x: 'AFR',
+    y: 'MAP (kPa)',
+    color: 'MAP (kPa)',
+  });
   await userEvent.selectOptions(screen.getByLabelText('Colour by'), '');
   expect(useLayoutStore.getState().scatter).toEqual({ x: 'AFR', y: 'MAP (kPa)' });
 });

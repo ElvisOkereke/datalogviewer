@@ -73,6 +73,8 @@ export function Toolbar({
   const inspectorOpen = useLayoutStore((s) => s.inspectorOpen);
   const { pref, cycle } = useTheme();
   const ThemeIcon = THEME_ICON[pref];
+  // Three view buttons must still leave room for the rest of the toolbar on a phone.
+  const viewItemClass = compact ? 'px-2 text-xs' : 'px-3 text-xs';
   const duration = log && log.rowCount > 0 ? log.time[log.rowCount - 1] : null;
 
   return (
@@ -107,13 +109,13 @@ export function Toolbar({
             value={view}
             onValueChange={(v) => v && useLayoutStore.getState().setView(v as ViewMode)}
           >
-            <ToggleGroupItem value="chart" className="px-3 text-xs">
+            <ToggleGroupItem value="chart" className={viewItemClass}>
               Chart
             </ToggleGroupItem>
-            <ToggleGroupItem value="scatter" className="px-3 text-xs">
+            <ToggleGroupItem value="scatter" className={viewItemClass}>
               Scatter
             </ToggleGroupItem>
-            <ToggleGroupItem value="table" className="px-3 text-xs">
+            <ToggleGroupItem value="table" className={viewItemClass}>
               Table
             </ToggleGroupItem>
           </ToggleGroup>
