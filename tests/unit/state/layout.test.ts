@@ -74,3 +74,10 @@ describe('migrateLayout', () => {
     expect(migrateLayout(broken)).toEqual(EMPTY_LAYOUT);
   });
 });
+
+test('a saved series colour that is not a slot or hex rejects the layout', () => {
+  const layout = defaultLayout(demo);
+  const broken = JSON.parse(JSON.stringify(layout));
+  broken.panes[0].series[0].color = 'red; background: url(https://example.com)';
+  expect(migrateLayout(broken)).toEqual(EMPTY_LAYOUT);
+});

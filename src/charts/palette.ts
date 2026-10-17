@@ -12,9 +12,13 @@ export const SERIES_SLOTS: Record<'dark' | 'light', string[]> = {
 };
 
 const SLOT = /^s([1-8])$/;
+const HEX = /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+
+/** True for values safe to put in CSS: a palette slot or a plain hex colour. */
+export const isSeriesColor = (c: string) => SLOT.test(c) || HEX.test(c);
 
 export function resolveSeriesColor(color: SeriesColor, theme: 'dark' | 'light'): string {
-  if (color.startsWith('#')) return color;
+  if (HEX.test(color)) return color;
   const m = SLOT.exec(color);
   return SERIES_SLOTS[theme][m ? Number(m[1]) - 1 : 0];
 }

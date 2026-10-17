@@ -1,4 +1,4 @@
-import { nextSeriesColor, type SeriesColor } from '@/charts/palette';
+import { isSeriesColor, nextSeriesColor, type SeriesColor } from '@/charts/palette';
 import { findChannel } from '@/data/channels';
 import type { Channel, Log } from '@/data/types';
 
@@ -81,6 +81,7 @@ const optionalNumber = (v: unknown) => v === undefined || typeof v === 'number';
 
 function isSeriesRef(v: unknown): v is SeriesRef {
   if (!isObject(v) || typeof v.header !== 'string' || typeof v.color !== 'string') return false;
+  if (!isSeriesColor(v.color)) return false;
   if (v.scale === undefined) return true;
   return isObject(v.scale) && optionalNumber(v.scale.min) && optionalNumber(v.scale.max);
 }

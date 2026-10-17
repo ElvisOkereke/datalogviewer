@@ -37,3 +37,9 @@ test('resolveSeriesColor maps slots per theme and keeps custom colours', () => {
   expect(resolveSeriesColor('#123456', 'light')).toBe('#123456');
   expect(resolveSeriesColor('s99', 'dark')).toBe('#3987e5');
 });
+
+test('anything that is not a slot or a hex colour falls back to slot 1 (never reaches CSS)', () => {
+  expect(resolveSeriesColor('url(https://example.com/x.png)', 'dark')).toBe('#3987e5');
+  expect(resolveSeriesColor('#12', 'dark')).toBe('#3987e5');
+  expect(resolveSeriesColor('#abc', 'dark')).toBe('#abc');
+});
