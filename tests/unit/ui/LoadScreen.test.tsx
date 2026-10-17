@@ -1,8 +1,11 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeEach, expect, test } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import { parseCsvText } from '@/io/csv/parseCsv';
 import { useLogStore } from '@/state/logStore';
 import { LoadScreen } from '@/ui/LoadScreen';
+
+// jsdom has no canvas; chart rendering is covered by Playwright.
+vi.mock('@/charts/ChartPane', () => ({ ChartPane: () => <div data-testid="chart-pane" /> }));
 
 beforeEach(() => useLogStore.setState({ logs: {}, activeLogId: null, status: { kind: 'idle' } }));
 
