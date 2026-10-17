@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { withCalculated, type CalculatedDef } from '@/data/calculated';
 import { findChannel } from '@/data/channels';
 import { evaluateFormula } from '@/data/formula/evaluate';
-import { parseFormula } from '@/data/formula/parse';
+import { formulaSize, MAX_TOTAL_FORMULA_NODES, parseFormula } from '@/data/formula/parse';
 import { FormulaError } from '@/data/formula/tokenize';
 import { finiteMinMax } from '@/data/stats';
 import type { Log } from '@/data/types';
@@ -54,6 +54,10 @@ function checkInContext(
   const defs = editingId
     ? calculated.map((d) => (d.id === editingId ? { ...draft, id } : d))
     : [...calculated, { ...draft, id }];
+  const total = defs.reduce((n, d) => n + formulaSize(d.expression), 0);
+  if (total > MAX_TOTAL_FORMULA_NODES) {
+    return `Calculated channels are too complex in total (over ${MAX_TOTAL_FORMULA_NODES} parts)`;
+  }
   return withCalculated(fileLog, defs).errors[id];
 }
 

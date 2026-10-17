@@ -1,7 +1,7 @@
 import { isSeriesColor, nextSeriesColor, type SeriesColor } from '@/charts/palette';
 import type { CalculatedDef } from '@/data/calculated';
 import { findChannel, MAX_HEADER_CHARS } from '@/data/channels';
-import { isOverComplex } from '@/data/formula/parse';
+import { formulaSize, isOverComplex, MAX_TOTAL_FORMULA_NODES } from '@/data/formula/parse';
 import type { Channel, Log } from '@/data/types';
 
 export interface SeriesRef {
@@ -109,7 +109,8 @@ export function bindLayout(layout: PersistedLayout, log: Log): BoundPane[] {
 }
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
-const optionalNumber = (v: unknown) => v === undefined || typeof v === 'number';
+const optionalFinite = (v: unknown) =>
+  v === undefined || (typeof v === 'number' && Number.isFinite(v));
 
 const isHeader = (v: unknown): v is string => typeof v === 'string' && v.length <= MAX_HEADER_CHARS;
 
@@ -117,7 +118,11 @@ function isSeriesRef(v: unknown): v is SeriesRef {
   if (!isObject(v) || !isHeader(v.header) || typeof v.color !== 'string') return false;
   if (!isSeriesColor(v.color)) return false;
   if (v.scale === undefined) return true;
-  return isObject(v.scale) && optionalNumber(v.scale.min) && optionalNumber(v.scale.max);
+  if (!isObject(v.scale) || !optionalFinite(v.scale.min) || !optionalFinite(v.scale.max)) {
+    return false;
+  }
+  const { min, max } = v.scale as { min?: number; max?: number };
+  return min === undefined || max === undefined || min < max;
 }
 
 function isPane(v: unknown): v is PaneLayout {
@@ -136,10 +141,14 @@ function isPane(v: unknown): v is PaneLayout {
 
 const optionalString = (v: unknown) => v === undefined || typeof v === 'string';
 
+/** Short and plain, and never a name objects already have ("constructor", "__proto__"). */
+const isSafeId = (v: unknown): v is string =>
+  typeof v === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(v) && !(v in Object.prototype);
+
 function isCalculatedDef(v: unknown): v is CalculatedDef {
   return (
     isObject(v) &&
-    typeof v.id === 'string' &&
+    isSafeId(v.id) &&
     typeof v.name === 'string' &&
     v.name.length <= MAX_NAME_CHARS &&
     typeof v.expression === 'string' &&
@@ -202,6 +211,8 @@ export function migrateLayout(raw: unknown): PersistedLayout {
     raw.calculated.length <= MAX_CALCULATED &&
     raw.calculated.every(isCalculatedDef) &&
     new Set(raw.calculated.map((d: CalculatedDef) => d.id)).size === raw.calculated.length &&
+    raw.calculated.reduce((n: number, d: CalculatedDef) => n + formulaSize(d.expression), 0) <=
+      MAX_TOTAL_FORMULA_NODES &&
     isScatter(raw.scatter)
   ) {
     return {

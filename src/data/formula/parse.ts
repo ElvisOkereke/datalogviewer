@@ -5,6 +5,8 @@ import { FormulaError, FormulaTooComplexError, tokenize, type Token } from './to
  * every row, so this bounds the cost of a formula on a 1M-row log to a fraction of a second.
  */
 export const MAX_FORMULA_NODES = 250;
+/** Most parts across all calculated channels together (every one is evaluated on each log). */
+export const MAX_TOTAL_FORMULA_NODES = 2000;
 
 function nodeCount(e: Expr): number {
   if (e.type === 'unary') return 1 + nodeCount(e.arg);
@@ -154,6 +156,18 @@ export function parseFormula(src: string): Expr {
     );
   }
   return expr;
+}
+
+/**
+ * Parts in a formula, for the total budget: 0 when it doesn't parse (it never runs), and over
+ * MAX_FORMULA_NODES when it is too complex on its own.
+ */
+export function formulaSize(src: string): number {
+  try {
+    return nodeCount(parseFormula(src));
+  } catch (e) {
+    return e instanceof FormulaTooComplexError ? MAX_FORMULA_NODES + 1 : 0;
+  }
 }
 
 /** True only when the formula parses but is over MAX_FORMULA_NODES (syntax errors are false). */

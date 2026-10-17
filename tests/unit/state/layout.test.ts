@@ -183,6 +183,36 @@ describe('layout files cannot make the app unusable', () => {
     expect(migrateLayout(raw)).toEqual(EMPTY_LAYOUT);
   });
 
+  const paneWithScale = (scale: unknown) => ({
+    ...EMPTY_LAYOUT,
+    panes: [{ id: 'p', size: 1, sharedAxis: false, series: [{ header: 'A', color: 's1', scale }] }],
+  });
+  test.each([
+    ['an infinite scale bound', JSON.parse('{"min": 0, "max": 1e999}')],
+    ['an inverted scale', { min: 10, max: 5 }],
+  ])('rejects %s', (_label, scale) => {
+    expect(migrateLayout(paneWithScale(scale))).toEqual(EMPTY_LAYOUT);
+  });
+  test('a one-sided scale is fine', () => {
+    expect(migrateLayout(paneWithScale({ max: 5 })).panes).toHaveLength(1);
+  });
+
+  test.each([['constructor'], ['__proto__'], ['has space'], ['x'.repeat(65)]])(
+    'rejects the calculated id %j',
+    (id) => {
+      const raw = { ...EMPTY_LAYOUT, calculated: [{ id, name: 'X', expression: '1' }] };
+      expect(migrateLayout(JSON.parse(JSON.stringify(raw)))).toEqual(EMPTY_LAYOUT);
+    },
+  );
+
+  test('formulas are capped in total, not just one by one', () => {
+    const big = Array(120).fill('[A]').join('+'); // 239 parts: fine alone
+    const calc = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({ id: `k${i}`, name: `N${i}`, expression: big }));
+    expect(migrateLayout({ ...EMPTY_LAYOUT, calculated: calc(8) }).calculated).toHaveLength(8);
+    expect(migrateLayout({ ...EMPTY_LAYOUT, calculated: calc(9) })).toEqual(EMPTY_LAYOUT);
+  });
+
   test('a formula with a syntax error is still kept (shown as unavailable)', () => {
     const raw = { ...EMPTY_LAYOUT, calculated: [{ id: 'k', name: 'X', expression: '[A] +' }] };
     expect(migrateLayout(raw).calculated).toHaveLength(1);
