@@ -155,3 +155,30 @@ describe('v2 actions', () => {
     expect(layout()).toMatchObject({ version: 2, panes: [{ id: 'old' }], calculated: [] });
   });
 });
+
+describe('caps are enforced where layouts are built, so a saved layout always loads back', () => {
+  test('no more than 32 panes', () => {
+    for (let i = 0; i < 40; i++) layout().addPane();
+    expect(layout().panes).toHaveLength(32);
+  });
+
+  test('no more than 32 series in a pane', () => {
+    const id = layout().addPane();
+    for (let i = 0; i < 40; i++) layout().addSeries(id, `C${i}`);
+    expect(layout().panes[0].series).toHaveLength(32);
+  });
+
+  test('no more than 64 calculated channels', () => {
+    for (let i = 0; i < 70; i++) layout().addCalculated({ name: `N${i}`, expression: '1' });
+    expect(layout().calculated).toHaveLength(64);
+  });
+
+  test('a layout built at the caps survives a save and reload', async () => {
+    for (let i = 0; i < 40; i++) layout().addPane();
+    const saved = localStorage.getItem('dlv.layout.v2');
+    useLayoutStore.setState({ ...EMPTY_LAYOUT });
+    localStorage.setItem('dlv.layout.v2', saved!);
+    await useLayoutStore.persist.rehydrate();
+    expect(layout().panes).toHaveLength(32);
+  });
+});

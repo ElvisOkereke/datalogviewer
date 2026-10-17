@@ -5,6 +5,9 @@ import type { Log } from '@/data/types';
 import {
   defaultLayout,
   EMPTY_LAYOUT,
+  MAX_CALCULATED,
+  MAX_PANES,
+  MAX_SERIES_PER_PANE,
   migrateLayout,
   newPaneId,
   type CalculatedDef,
@@ -96,6 +99,9 @@ export const useLayoutStore = create<LayoutState>()(
           set({ panes: defaultLayout(log).panes });
         },
         addPane() {
+          // At the cap, hand back the last pane rather than build a layout that won't load.
+          const panes = get().panes;
+          if (panes.length >= MAX_PANES) return panes[panes.length - 1].id;
           const id = newPaneId();
           set({ panes: evenly([...get().panes, { id, size: 0, sharedAxis: false, series: [] }]) });
           return id;
@@ -108,7 +114,7 @@ export const useLayoutStore = create<LayoutState>()(
         },
         addSeries(paneId, header) {
           updatePane(paneId, (p) =>
-            p.series.some((s) => s.header === header)
+            p.series.some((s) => s.header === header) || p.series.length >= MAX_SERIES_PER_PANE
               ? p
               : {
                   ...p,
@@ -157,6 +163,7 @@ export const useLayoutStore = create<LayoutState>()(
           set({ inspectorTab });
         },
         addCalculated(def) {
+          if (get().calculated.length >= MAX_CALCULATED) return '';
           const id = `k-${Math.random().toString(36).slice(2, 10)}`;
           set({ calculated: [...get().calculated, { id, ...def }] });
           return id;
