@@ -12,6 +12,8 @@ export interface ViewState {
   pinned: boolean;
   focusedPaneId: string | null;
   time: Float64Array | null;
+  /** A range picked with Shift+drag for statistics; not persisted. */
+  selection: XRange | null;
   resetForLog(time: Float64Array): void;
   setRange(r: XRange): void;
   fit(): void;
@@ -22,6 +24,9 @@ export interface ViewState {
   unpin(): void;
   stepCursor(delta: number, rowCount: number): void;
   focusPane(id: string | null): void;
+  select(r: XRange): void;
+  clearSelection(): void;
+  zoomToSelection(): void;
 }
 
 const same = (a: XRange, b: XRange) => a.min === b.min && a.max === b.max;
@@ -43,6 +48,7 @@ export const useViewStore = create<ViewState>()((set, get) => {
     pinned: false,
     focusedPaneId: null,
     time: null,
+    selection: null,
 
     resetForLog(time) {
       const n = time.length;
@@ -55,6 +61,7 @@ export const useViewStore = create<ViewState>()((set, get) => {
         range: null,
         cursor: null,
         pinned: false,
+        selection: null,
       });
     },
     setRange: apply,
@@ -89,6 +96,20 @@ export const useViewStore = create<ViewState>()((set, get) => {
     },
     focusPane(id) {
       set({ focusedPaneId: id });
+    },
+    select(r) {
+      const { bounds, minSpan } = get();
+      if (!bounds) return;
+      const min = Math.max(r.min, bounds.min);
+      const max = Math.min(r.max, bounds.max);
+      if (max - min >= minSpan) set({ selection: { min, max } });
+    },
+    clearSelection() {
+      set({ selection: null });
+    },
+    zoomToSelection() {
+      const { selection } = get();
+      if (selection) apply(selection);
     },
   };
 });

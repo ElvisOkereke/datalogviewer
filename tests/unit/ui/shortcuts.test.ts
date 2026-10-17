@@ -26,7 +26,11 @@ describe('shortcutFor', () => {
     [key('-'), { type: 'zoom', factor: 1.25 }],
     [key('f'), { type: 'fit' }],
     [key('F', { shiftKey: true }), { type: 'fit' }],
-    [key('Escape'), { type: 'unpin' }],
+    [key('Escape'), { type: 'escape' }],
+    [key('z'), { type: 'zoomSelection' }],
+    [key('Z', { shiftKey: true }), { type: 'zoomSelection' }],
+    [key('m'), { type: 'marker' }],
+    [key('M', { shiftKey: true }), { type: 'marker' }],
     [key('?', { shiftKey: true }), { type: 'help' }],
   ])('%j → %j', (event, action) => {
     expect(shortcutFor(event, false)).toEqual(action);

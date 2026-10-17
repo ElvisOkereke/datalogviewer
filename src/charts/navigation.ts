@@ -5,6 +5,8 @@ export interface NavigationHandlers {
   zoomAt(anchor: number, factor: number): void;
   pan(delta: number): void;
   setRange(r: XRange): void;
+  /** Shift+drag picks a range (for statistics) rather than zooming. */
+  select(r: XRange): void;
   fit(): void;
   /** Pins the cursor at an x value (the caller maps it to a log row). */
   pinAt(x: number): void;
@@ -31,7 +33,7 @@ const CLICK_SLOP_PX = 4;
 
 /**
  * Mouse and touch navigation for a chart pane:
- * wheel = zoom at the pointer, drag = pan, Shift+drag = box zoom (uPlot's own selection),
+ * wheel = zoom at the pointer, drag = pan, Shift+drag = select a range (uPlot's own selection),
  * double-click = fit, click/tap = pin the cursor, two-finger pinch = zoom.
  */
 export function navigationPlugin(h: NavigationHandlers): uPlot.Plugin {
@@ -146,7 +148,7 @@ export function navigationPlugin(h: NavigationHandlers): uPlot.Plugin {
           u.setSelect({ left: 0, top: 0, width: 0, height: 0 }, false);
           // Apply after uPlot finishes its mouseup: changing the range re-places a pinned cursor,
           // and doing that mid-drag would re-enter uPlot's selection.
-          if (max > min) queueMicrotask(() => h.setRange({ min, max }));
+          if (max > min) queueMicrotask(() => h.select({ min, max }));
         },
       ],
     },

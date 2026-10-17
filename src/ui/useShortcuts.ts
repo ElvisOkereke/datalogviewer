@@ -43,8 +43,16 @@ export function useShortcuts(onHelp: () => void): void {
         case 'fit':
           view.fit();
           break;
-        case 'unpin':
-          view.unpin();
+        case 'escape':
+          // First Esc clears a selection; the next releases a pinned cursor.
+          if (view.selection) view.clearSelection();
+          else view.unpin();
+          break;
+        case 'zoomSelection':
+          view.zoomToSelection();
+          break;
+        case 'marker':
+          // Wired up with markers (Plan C Task 9).
           break;
         case 'help':
           onHelp();

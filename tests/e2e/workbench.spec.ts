@@ -38,6 +38,14 @@ test('the crosshair is shared across panes and the legend follows it', async ({ 
   expect(atThreeQuarters[0]).not.toBe(atHalf[0]);
 });
 
+/** The current range selection as exposed on a chart pane, or null. */
+async function selection(page: Page, pane = 0) {
+  const el = page.getByTestId('chart-pane').nth(pane);
+  const min = await el.getAttribute('data-sel-min');
+  const max = await el.getAttribute('data-sel-max');
+  return min === null || max === null ? null : { min: Number(min), max: Number(max) };
+}
+
 async function xRange(page: Page, pane = 0) {
   const el = page.getByTestId('chart-pane').nth(pane);
   return {
@@ -65,7 +73,9 @@ test('wheel zooms around the pointer, double-click fits, both panes stay in step
   await expect.poll(() => xRange(page)).toEqual(full);
 });
 
-test('dragging pans a zoomed view; Shift+drag zooms to the selection', async ({ page }) => {
+test('dragging pans a zoomed view; Shift+drag selects; Z zooms to the selection', async ({
+  page,
+}) => {
   await loadDemo(page);
   await hoverPlot(page, 0.5);
   for (let i = 0; i < 4; i++) await page.mouse.wheel(0, -100);
@@ -89,9 +99,18 @@ test('dragging pans a zoomed view; Shift+drag zooms to the selection', async ({ 
   await page.mouse.move(box.x + box.width * 0.5, y, { steps: 5 });
   await page.mouse.up();
   await page.keyboard.up('Shift');
-  const selected = await xRange(page);
-  expect(selected.min).toBeGreaterThan(100);
-  expect(selected.max).toBeLessThan(260);
+  const sel = await selection(page);
+  expect(sel!.min).toBeGreaterThan(100);
+  expect(sel!.max).toBeLessThan(260);
+  expect((await xRange(page)).min).toBe(0); // selecting doesn't zoom
+
+  await page.keyboard.press('z');
+  const zoomedToSel = await xRange(page);
+  expect(zoomedToSel.min).toBeCloseTo(sel!.min, 5);
+  expect(zoomedToSel.max).toBeCloseTo(sel!.max, 5);
+
+  await page.keyboard.press('Escape');
+  await expect.poll(() => selection(page)).toBeNull();
 });
 
 test('click pins the cursor; arrow keys step it; Escape releases it', async ({ page }) => {
@@ -288,7 +307,7 @@ test('a pinned crosshair stays on its sample when the view zooms', async ({ page
   expect(Math.abs(actualPx - expectedPx)).toBeLessThan(3);
 });
 
-test('Shift+drag zooms to the selection even with a pinned cursor', async ({ page }) => {
+test('Shift+drag selects the dragged range even with a pinned cursor', async ({ page }) => {
   await loadDemo(page);
   const box = (await page.getByTestId('chart-pane').first().locator('.u-over').boundingBox())!;
   const y = box.y + box.height / 2;
@@ -299,7 +318,7 @@ test('Shift+drag zooms to the selection even with a pinned cursor', async ({ pag
   await page.mouse.move(box.x + box.width * 0.5, y, { steps: 5 });
   await page.mouse.up();
   await page.keyboard.up('Shift');
-  const r = await xRange(page);
+  const r = (await selection(page))!;
   expect(r.min).toBeGreaterThan(100);
   expect(r.max).toBeLessThan(260);
   expect(r.max - r.min).toBeGreaterThan(100);

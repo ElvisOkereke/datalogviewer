@@ -167,7 +167,12 @@ export function PaneStack({ log, resizable = true }: { log: Log; resizable?: boo
             >
               <PaneMenu pane={pane} />
               <ErrorBoundary resetKey={log.id} label="this chart">
-                <ChartPane pane={pane} log={log} focused={pane.id === selectedId} />
+                <ChartPane
+                  pane={pane}
+                  log={log}
+                  focused={pane.id === selectedId}
+                  showMarkerLabels={i === 0}
+                />
               </ErrorBoundary>
             </DropTarget>
           </Panel>,
