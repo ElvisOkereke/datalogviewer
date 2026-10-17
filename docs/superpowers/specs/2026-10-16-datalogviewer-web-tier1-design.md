@@ -30,25 +30,25 @@ The existing Flutter prototype (~750 lines) cannot load files on the web (`dart:
 
 **Decisions made during brainstorming**
 
-| Topic | Decision |
-|---|---|
-| Stack | TypeScript + React + Vite; uPlot for time-series charts; Papa Parse in a Web Worker; Tailwind CSS + shadcn/ui; Zustand for state. Plotly is reserved for Tier 2 scatter/histogram views (lazy-loaded). |
-| Hosting | GitHub Pages via GitHub Actions. |
-| Repo | Same repo. Tag Flutter code `flutter-prototype`, replace on `main`, rename repo to `datalogviewer`. |
-| Layout | "Workbench": channel sidebar left, stacked chart panes, overview strip, optional Inspector panel on the right. |
-| Visual style | "Instrument": graphite dark-first, amber accent, Inter + JetBrains Mono. Light theme also provided. |
-| License | None for now (default copyright applies). Repo stays public. |
+| Topic        | Decision                                                                                                                                                                                               |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Stack        | TypeScript + React + Vite; uPlot for time-series charts; Papa Parse in a Web Worker; Tailwind CSS + shadcn/ui; Zustand for state. Plotly is reserved for Tier 2 scatter/histogram views (lazy-loaded). |
+| Hosting      | GitHub Pages via GitHub Actions.                                                                                                                                                                       |
+| Repo         | Same repo. Tag Flutter code `flutter-prototype`, replace on `main`, rename repo to `datalogviewer`.                                                                                                    |
+| Layout       | "Workbench": channel sidebar left, stacked chart panes, overview strip, optional Inspector panel on the right.                                                                                         |
+| Visual style | "Instrument": graphite dark-first, amber accent, Inter + JetBrains Mono. Light theme also provided.                                                                                                    |
+| License      | None for now (default copyright applies). Repo stays public.                                                                                                                                           |
 
 ---
 
 ## 3. Roadmap
 
-| Milestone | Delivers | Release |
-|---|---|---|
-| **M0 Foundation** | Project scaffold, lint/format/test tooling, CI, Pages deploy, app shell + theme. Live URL on day one. | part of v0.1.0 |
-| **M1 Tier 1** | Everything in this document. | **v0.1.0** |
-| **M2 Tier 2** | Calculated channels, scatter (Plotly), range stats, markers, PNG/CSV export, layout files. | v0.2.0 |
-| **M3 Tier 3** | RPM×MAP histogram tables, log compare/overlay, filters, `.msl`/MLG readers, PWA. May ship as several releases. | v0.3.0+ |
+| Milestone         | Delivers                                                                                                       | Release        |
+| ----------------- | -------------------------------------------------------------------------------------------------------------- | -------------- |
+| **M0 Foundation** | Project scaffold, lint/format/test tooling, CI, Pages deploy, app shell + theme. Live URL on day one.          | part of v0.1.0 |
+| **M1 Tier 1**     | Everything in this document.                                                                                   | **v0.1.0**     |
+| **M2 Tier 2**     | Calculated channels, scatter (Plotly), range stats, markers, PNG/CSV export, layout files.                     | v0.2.0         |
+| **M3 Tier 3**     | RPM×MAP histogram tables, log compare/overlay, filters, `.msl`/MLG readers, PWA. May ship as several releases. | v0.3.0+        |
 
 Each of M2 and M3 gets its own spec → plan → implementation cycle.
 
@@ -81,31 +81,38 @@ interface Log {
   id: string;
   fileName: string;
   rowCount: number;
-  time: Float64Array;                 // seconds from start, or row index
-  timeSource: { kind: 'column'; channelId: string; originalUnit: 's' | 'ms' | 'datetime' }
-            | { kind: 'index' };
-  channels: Channel[];                // file order preserved
+  time: Float64Array; // seconds from start, or row index
+  timeSource:
+    | { kind: 'column'; channelId: string; originalUnit: 's' | 'ms' | 'datetime' }
+    | { kind: 'index' };
+  channels: Channel[]; // file order preserved
   meta: {
     delimiter: string;
     decimal: '.' | ',';
     encoding: 'utf-8' | 'windows-1252';
-    preamble: string[];               // skipped lines before the header
+    preamble: string[]; // skipped lines before the header
     warnings: ParseWarning[];
   };
 }
 
 interface Channel {
-  id: string;                         // stable within a log
-  header: string;                     // exact original header text, e.g. "Calculated MAP (psi)"
-  name: string;                       // "Calculated MAP"
-  unit?: string;                      // "psi"
-  kind: 'numeric' | 'text';           // Tier 2 adds 'calculated'
-  values: Float64Array | null;        // numeric: NaN for blank/invalid cells
-  text: string[] | null;              // text channels only
-  min: number; max: number;           // over finite values; NaN if none
+  id: string; // stable within a log
+  header: string; // exact original header text, e.g. "Calculated MAP (psi)"
+  name: string; // "Calculated MAP"
+  unit?: string; // "psi"
+  kind: 'numeric' | 'text'; // Tier 2 adds 'calculated'
+  values: Float64Array | null; // numeric: NaN for blank/invalid cells
+  text: string[] | null; // text channels only
+  min: number;
+  max: number; // over finite values; NaN if none
 }
 
-interface ParseWarning { code: string; message: string; count?: number; firstRow?: number }
+interface ParseWarning {
+  code: string;
+  message: string;
+  count?: number;
+  firstRow?: number;
+}
 ```
 
 - Invalid/blank numeric cells are `NaN`; uPlot renders them as gaps (never as fake zeros).
@@ -115,9 +122,9 @@ interface ParseWarning { code: string; message: string; count?: number; firstRow
 
 ```ts
 interface LogReader {
-  id: string;                         // 'csv'
-  extensions: string[];               // ['.csv', '.txt', '.tsv']
-  sniff(head: Uint8Array): number;    // confidence 0..1 from the first ~64 KB
+  id: string; // 'csv'
+  extensions: string[]; // ['.csv', '.txt', '.tsv']
+  sniff(head: Uint8Array): number; // confidence 0..1 from the first ~64 KB
   parse(file: File, onProgress: (fraction: number) => void): Promise<Log>;
 }
 ```
@@ -145,19 +152,19 @@ The registry picks the highest-confidence reader. Tier 3 adds `.msl` and MLG rea
 
 Implemented as pure functions in `io/csv/` so every rule is unit-tested.
 
-| Concern | Rule |
-|---|---|
-| Encoding | Strip UTF-8 BOM. Decode as UTF-8 with `fatal: true`; on failure, re-decode as windows-1252. |
-| Delimiter | Score `,` `;` `\t` `|` on the first 50 non-empty lines by field-count consistency; highest consistent count wins. |
-| Decimal comma | If the delimiter is not `,` and comma-decimal cells (`^-?\d+,\d+$`) outnumber dot-decimal cells, treat `,` as the decimal separator. A consistent `;`/tab/`|` delimiter wins over `,`. |
-| Preamble | Determine the modal field count; leading lines with a different count are skipped and kept in `meta.preamble`. |
-| Header | First kept row is the header if most of its cells are non-numeric; otherwise headers are `Column 1..N` and that row is data. |
-| Units row | If the row after the header is mostly non-numeric and the next is mostly numeric, it is a units row. |
-| Units in header | `Name (unit)` or `Name [unit]` → `name`, `unit` (units row wins if both present). `header` keeps the original text. |
-| Column kind | Numeric if ≥ 90% of non-blank cells parse as numbers; otherwise text. |
-| Time column | Candidate if name matches `/^(time|timestamp|secl?|seconds?|ms|millis(econds)?)$/i` after unit stripping, or unit is `s`/`ms`. Must be non-decreasing. `ms` → divide by 1000. Date-time strings → epoch → seconds from first row. Rebased so the first sample is 0. If none qualifies → row index, with an info notice. |
-| Ragged rows | Short rows padded with NaN/empty; long rows truncated. Non-fatal warning with count and first row. Blank lines ignored. |
-| Size | Warn (confirm dialog) above 150 MB. The worker decodes the whole file to text, then parses row by row straight into typed arrays (no intermediate row objects). Out-of-memory in the worker is caught and reported. |
+| Concern         | Rule                                                                                                                                                                                                                |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Encoding        | Strip UTF-8 BOM. Decode as UTF-8 with `fatal: true`; on failure, re-decode as windows-1252.                                                                                                                         |
+| Delimiter       | Score `,` `;` `\t` `                                                                                                                                                                                                | ` on the first 50 non-empty lines by field-count consistency; highest consistent count wins. |
+| Decimal comma   | If the delimiter is not `,` and comma-decimal cells (`^-?\d+,\d+$`) outnumber dot-decimal cells, treat `,` as the decimal separator. A consistent `;`/tab/`                                                         | `delimiter wins over`,`.                                                                     |
+| Preamble        | Determine the modal field count; leading lines with a different count are skipped and kept in `meta.preamble`.                                                                                                      |
+| Header          | First kept row is the header if most of its cells are non-numeric; otherwise headers are `Column 1..N` and that row is data.                                                                                        |
+| Units row       | If the row after the header is mostly non-numeric and the next is mostly numeric, it is a units row.                                                                                                                |
+| Units in header | `Name (unit)` or `Name [unit]` → `name`, `unit` (units row wins if both present). `header` keeps the original text.                                                                                                 |
+| Column kind     | Numeric if ≥ 90% of non-blank cells parse as numbers; otherwise text.                                                                                                                                               |
+| Time column     | Candidate if name matches `/^(time                                                                                                                                                                                  | timestamp                                                                                    | secl? | seconds? | ms  | millis(econds)?)$/i`after unit stripping, or unit is`s`/`ms`. Must be non-decreasing. `ms` → divide by 1000. Date-time strings → epoch → seconds from first row. Rebased so the first sample is 0. If none qualifies → row index, with an info notice. |
+| Ragged rows     | Short rows padded with NaN/empty; long rows truncated. Non-fatal warning with count and first row. Blank lines ignored.                                                                                             |
+| Size            | Warn (confirm dialog) above 150 MB. The worker decodes the whole file to text, then parses row by row straight into typed arrays (no intermediate row objects). Out-of-memory in the worker is caught and reported. |
 
 **Fixtures:** `tests/fixtures/` holds the user-provided `autodata-sheet2.csv` (header with `(unit)` names, `°` characters, no time column), plus small hand-written files for each rule above (semicolon/decimal-comma, preamble, units row, ms time, datetime time, ragged rows, windows-1252 `°`, no header, text column, empty file, no numeric columns).
 
@@ -183,15 +190,15 @@ Below ~900 px: sidebar and inspector become slide-over drawers; toolbar collapse
 
 Defined as CSS variables on `:root`, switched by `data-theme` and `prefers-color-scheme`.
 
-| Token | Dark | Light |
-|---|---|---|
-| `--bg` | `#0e1013` | `#f7f8fa` |
-| `--panel` | `#15181c` | `#ffffff` |
-| `--line` | `#252a31` | `#e1e4e8` |
-| `--fg` | `#e7ebef` | `#16191d` |
-| `--muted` | `#7d8792` | `#5f6873` |
+| Token      | Dark      | Light                                      |
+| ---------- | --------- | ------------------------------------------ |
+| `--bg`     | `#0e1013` | `#f7f8fa`                                  |
+| `--panel`  | `#15181c` | `#ffffff`                                  |
+| `--line`   | `#252a31` | `#e1e4e8`                                  |
+| `--fg`     | `#e7ebef` | `#16191d`                                  |
+| `--muted`  | `#7d8792` | `#5f6873`                                  |
 | `--accent` | `#f5a524` | `#c97a00` (darkened for contrast on light) |
-| Radius | 5 px | 5 px |
+| Radius     | 5 px      | 5 px                                       |
 
 Fonts: Inter (UI), JetBrains Mono with `tabular-nums` (all numeric readouts, axes, table cells). Self-hosted via `@fontsource` packages — no runtime calls to Google Fonts.
 
@@ -213,18 +220,18 @@ Toolbar, Sidebar (search + virtualized channel list), PaneStack (react-resizable
 
 **Navigation**
 
-| Input | Action |
-|---|---|
-| Wheel | Zoom x around pointer |
-| Drag | Pan |
-| Shift + drag | Box-zoom to selected x-range |
-| Double-click / `F` | Fit full log |
-| Overview strip | Drag window, drag its edges, click to centre |
-| `←` / `→` (Shift ×10) | Step cursor one sample |
-| `Home` / `End` | Cursor to start / end |
-| `+` / `-` | Zoom in / out around cursor |
-| `?` | Shortcuts dialog |
-| Touch | Pinch zoom, one-finger pan, tap sets cursor |
+| Input                 | Action                                       |
+| --------------------- | -------------------------------------------- |
+| Wheel                 | Zoom x around pointer                        |
+| Drag                  | Pan                                          |
+| Shift + drag          | Box-zoom to selected x-range                 |
+| Double-click / `F`    | Fit full log                                 |
+| Overview strip        | Drag window, drag its edges, click to centre |
+| `←` / `→` (Shift ×10) | Step cursor one sample                       |
+| `Home` / `End`        | Cursor to start / end                        |
+| `+` / `-`             | Zoom in / out around cursor                  |
+| `?`                   | Shortcuts dialog                             |
+| Touch                 | Pinch zoom, one-finger pan, tap sets cursor  |
 
 **Cursor:** hover moves the synced crosshair; click pins it (values hold while the pointer leaves); `Esc` unpins. Legends and Inspector read from the cursor index.
 
@@ -239,8 +246,12 @@ Toolbar, Sidebar (search + virtualized channel list), PaneStack (react-resizable
 ```ts
 interface PersistedLayout {
   version: 1;
-  panes: { id: string; size: number; sharedAxis: boolean;
-           series: { header: string; color: string; scale?: { min?: number; max?: number } }[] }[];
+  panes: {
+    id: string;
+    size: number;
+    sharedAxis: boolean;
+    series: { header: string; color: string; scale?: { min?: number; max?: number } }[];
+  }[];
   sidebarWidth: number;
   inspectorOpen: boolean;
   view: 'chart' | 'table';
@@ -259,14 +270,14 @@ The theme preference is stored separately under `dlv.theme` so the pre-paint scr
 
 ## 9. Error handling
 
-| Failure | Behaviour |
-|---|---|
+| Failure                 | Behaviour                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | Unreadable / empty file | Error card: what happened, what was expected, "Report this file" link (GitHub Issues, pre-filled, no file upload). |
-| No numeric columns | Same card, listing detected columns. |
-| Non-fatal parse issues | Load succeeds; warning toast with counts and first row numbers. |
-| Worker crash / OOM | Caught; error card; app stays usable. |
-| Storage unavailable | Silent fallback; layout not remembered. |
-| Unexpected render error | React error boundary per pane and at app root with "Reload" and "Report" actions. |
+| No numeric columns      | Same card, listing detected columns.                                                                               |
+| Non-fatal parse issues  | Load succeeds; warning toast with counts and first row numbers.                                                    |
+| Worker crash / OOM      | Caught; error card; app stays usable.                                                                              |
+| Storage unavailable     | Silent fallback; layout not remembered.                                                                            |
+| Unexpected render error | React error boundary per pane and at app root with "Reload" and "Report" actions.                                  |
 
 Supported browsers: last two versions of Chrome, Edge, Firefox, Safari.
 
@@ -293,6 +304,7 @@ Supported browsers: last two versions of Chrome, Edge, Firefox, Safari.
 - Sample generation: `scripts/generate-sample.ts` (seeded PRNG) produces `public/samples/demo-run.csv`: ~8 minutes at 20 Hz (~9,600 rows) with `Time (s)`, `Engine Speed (rpm)`, `MAP (kPa)`, `AFR`, `Accelerator Position (%)`, `Coolant Temperature (°C)`, `Intake Air Temperature (°C)`, `Ignition Advance (°)`, `Battery Voltage (V)`, plus a text `Fuel Mode` channel — physically plausible (RPM/MAP correlated, AFR richens under load).
 
 **Repo migration (done at the start of M0, each outward step confirmed with the user first):**
+
 1. Commit or stash outstanding Flutter changes; tag `flutter-prototype`; push tag.
 2. On a branch, remove Flutter files (`lib/`, `android/`, `ios/`, `linux/`, `macos/`, `windows/`, `web/`, `test/`, `pubspec.*`, `analysis_options.yaml`, `.metadata`) and scaffold the new app.
 3. Rename GitHub repo to `datalogviewer` (GitHub redirects old URLs); update local remote.
@@ -303,15 +315,15 @@ Supported browsers: last two versions of Chrome, Edge, Firefox, Safari.
 
 ## 12. Hooks for later tiers
 
-| Future feature | Tier 1 provision |
-|---|---|
-| Calculated channels (T2) | `Channel.kind` union; channels are columns in the same registry, so charts/inspector/table pick them up. |
-| Range stats, markers (T2) | Shift-drag selection already produces an x-range in the view store. |
-| Layout files (T2) | `PersistedLayout` is versioned, header-keyed JSON — export/import is serialization. |
-| Log compare (T3) | `logs` is a map; series refs can gain a `logId`. |
-| New formats (T3) | `LogReader` registry. |
-| Filters (T3) | Columnar `Float64Array`s allow mask arrays over the same index space. |
-| PWA (T3) | Static Vite build; add a service worker plugin. |
+| Future feature            | Tier 1 provision                                                                                         |
+| ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Calculated channels (T2)  | `Channel.kind` union; channels are columns in the same registry, so charts/inspector/table pick them up. |
+| Range stats, markers (T2) | Shift-drag selection already produces an x-range in the view store.                                      |
+| Layout files (T2)         | `PersistedLayout` is versioned, header-keyed JSON — export/import is serialization.                      |
+| Log compare (T3)          | `logs` is a map; series refs can gain a `logId`.                                                         |
+| New formats (T3)          | `LogReader` registry.                                                                                    |
+| Filters (T3)              | Columnar `Float64Array`s allow mask arrays over the same index space.                                    |
+| PWA (T3)                  | Static Vite build; add a service worker plugin.                                                          |
 
 ---
 

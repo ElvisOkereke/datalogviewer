@@ -74,6 +74,7 @@ tests/fixtures/autodata-sheet2.csv
 ### Task 1: Preserve the Flutter prototype and start the rebuild branch
 
 **Files:**
+
 - Commit (main): `lib/csv_line_chart.dart`, `lib/main.dart`, `pubspec.yaml`, `pubspec.lock`
 - Delete (branch): `lib/`, `android/`, `ios/`, `linux/`, `macos/`, `windows/`, `web/`, `test/`, `pubspec.yaml`, `pubspec.lock`, `analysis_options.yaml`, `.metadata`, `.prettierignore` (untracked; contains only `**`, which would make Prettier ignore everything)
 
@@ -92,6 +93,7 @@ git commit -m "flutter: range slider WIP (final prototype state)"
 git tag -a flutter-prototype -m "Final state of the Flutter prototype before the web rebuild"
 git tag -l flutter-prototype
 ```
+
 Expected: `flutter-prototype`
 
 - [ ] **Step 3: Create the branch and remove Flutter files**
@@ -102,6 +104,7 @@ git rm -r -q lib android ios linux macos windows web test pubspec.yaml pubspec.l
 rm -f .prettierignore
 git status --short | head
 ```
+
 Expected: only `D` lines plus untracked `docs/` and modified `.gitignore`.
 
 - [ ] **Step 4: Replace `.gitignore`**
@@ -130,10 +133,12 @@ git commit -m "chore: remove Flutter prototype, add web rebuild spec and plan"
 ### Task 2: Scaffold the Vite + React + TypeScript app with the Instrument theme
 
 **Files:**
+
 - Create: `package.json`, `.nvmrc`, `tsconfig.json`, `vite.config.ts`, `eslint.config.js`, `.prettierrc`, `.prettierignore`, `index.html`, `public/favicon.svg`, `src/main.tsx`, `src/App.tsx`, `src/index.css`, `src/globals.d.ts`, `src/ui/theme.ts`, `src/ui/useTheme.ts`
 - Test: `tests/unit/setup.ts`, `tests/unit/ui/theme.test.ts`, `tests/unit/App.test.tsx`
 
 **Interfaces:**
+
 - Produces: `type ThemePref = 'dark' | 'light' | 'system'`; `THEME_KEY = 'dlv.theme'`; `readThemePref(): ThemePref`; `resolveTheme(pref: ThemePref, systemDark: boolean): 'dark' | 'light'`; `applyTheme(pref: ThemePref): void`; `useTheme(): { pref: ThemePref; cycle: () => void }`; `App` component; global `__APP_VERSION__: string`; path alias `@/` → `src/`.
 
 - [ ] **Step 1: Create `package.json` (scripts only; dependencies are added by npm in Step 2)**
@@ -160,6 +165,7 @@ git commit -m "chore: remove Flutter prototype, add web rebuild spec and plan"
 ```
 
 And `.nvmrc`:
+
 ```
 22
 ```
@@ -170,6 +176,7 @@ And `.nvmrc`:
 npm install react@^19.3.1 react-dom@^19.3.1 papaparse@^5.7.0 zustand@^5.0.15 @fontsource-variable/inter@^5.3.0 @fontsource-variable/jetbrains-mono@^5.3.0
 npm install -D vite@^8.3.4 @vitejs/plugin-react@^6.1.2 typescript@~6.0.3 tailwindcss@^4.3.3 @tailwindcss/vite@^4.3.3 @types/react @types/react-dom @types/papaparse @types/node@^22 vitest@^5.0.5 jsdom @testing-library/react @testing-library/dom @testing-library/jest-dom eslint@^10 @eslint/js@^10 typescript-eslint@^8.71.2 eslint-plugin-react-hooks@^7.1.1 globals prettier@^3.9.10 @playwright/test@^1.64.1 tsx@^4.23.15
 ```
+
 Expected: both complete without peer-dependency errors.
 
 - [ ] **Step 3: Create `tsconfig.json`**
@@ -228,6 +235,7 @@ export default defineConfig({
 - [ ] **Step 5: Create lint/format config**
 
 `eslint.config.js`:
+
 ```js
 import js from '@eslint/js';
 import { defineConfig } from 'eslint/config';
@@ -252,11 +260,13 @@ export default defineConfig(
 ```
 
 `.prettierrc`:
+
 ```json
 { "singleQuote": true, "printWidth": 100 }
 ```
 
 `.prettierignore`:
+
 ```
 dist
 coverage
@@ -271,6 +281,7 @@ tests/fixtures
 - [ ] **Step 6: Write the failing tests**
 
 `tests/unit/setup.ts`:
+
 ```ts
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
@@ -291,6 +302,7 @@ Object.defineProperty(window, 'matchMedia', {
 ```
 
 `tests/unit/ui/theme.test.ts`:
+
 ```ts
 import { beforeEach, describe, expect, test } from 'vitest';
 import { applyTheme, readThemePref, resolveTheme, THEME_KEY } from '@/ui/theme';
@@ -319,6 +331,7 @@ describe('theme', () => {
 ```
 
 `tests/unit/App.test.tsx`:
+
 ```tsx
 import { render, screen } from '@testing-library/react';
 import { expect, test } from 'vitest';
@@ -338,6 +351,7 @@ Expected: FAIL — cannot resolve `@/ui/theme` and `@/App`.
 - [ ] **Step 8: Implement theme helpers**
 
 `src/ui/theme.ts`:
+
 ```ts
 export type ThemePref = 'dark' | 'light' | 'system';
 
@@ -369,6 +383,7 @@ export function applyTheme(pref: ThemePref): void {
 ```
 
 `src/ui/useTheme.ts`:
+
 ```ts
 import { useEffect, useState } from 'react';
 import { applyTheme, readThemePref, type ThemePref } from './theme';
@@ -394,11 +409,13 @@ export function useTheme(): { pref: ThemePref; cycle: () => void } {
 - [ ] **Step 9: Implement the shell**
 
 `src/globals.d.ts`:
+
 ```ts
 declare const __APP_VERSION__: string;
 ```
 
 `src/App.tsx`:
+
 ```tsx
 import { useTheme } from '@/ui/useTheme';
 
@@ -430,6 +447,7 @@ export function App() {
 ```
 
 `src/main.tsx`:
+
 ```tsx
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -444,6 +462,7 @@ createRoot(document.getElementById('root')!).render(
 ```
 
 `src/index.css` (token names follow shadcn/ui conventions so Plan B's components drop in unchanged):
+
 ```css
 @import 'tailwindcss';
 @import '@fontsource-variable/inter';
@@ -542,6 +561,7 @@ createRoot(document.getElementById('root')!).render(
 ```
 
 `index.html` (the inline script sets the theme before first paint to avoid a flash):
+
 ```html
 <!doctype html>
 <html lang="en">
@@ -557,7 +577,8 @@ createRoot(document.getElementById('root')!).render(
     <script>
       try {
         var p = localStorage.getItem('dlv.theme');
-        var dark = p === 'dark' || (p !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        var dark =
+          p === 'dark' || (p !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
         document.documentElement.dataset.theme = dark ? 'dark' : 'light';
       } catch (e) {
         document.documentElement.dataset.theme = 'dark';
@@ -572,6 +593,7 @@ createRoot(document.getElementById('root')!).render(
 ```
 
 `public/favicon.svg`:
+
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#15181c"/><polyline points="5,22 11,14 16,18 21,8 27,12" fill="none" stroke="#f5a524" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
 ```
@@ -594,15 +616,18 @@ git commit -m "feat: scaffold Vite + React + TS app with Instrument theme"
 ### Task 3: CI, Pages deployment and the Playwright smoke test
 
 **Files:**
+
 - Create: `playwright.config.ts`, `tests/e2e/smoke.spec.ts`, `.github/workflows/ci.yml`, `.github/workflows/deploy.yml`
 
 **Interfaces:**
+
 - Consumes: `npm run build`, `npm run preview`, the `<header>` banner from Task 2.
 - Produces: `npm run test:e2e` serving the production build at `http://localhost:4173/datalogviewer/`.
 
 - [ ] **Step 1: Write the failing E2E test**
 
 `tests/e2e/smoke.spec.ts`:
+
 ```ts
 import { expect, test } from '@playwright/test';
 
@@ -733,10 +758,12 @@ git commit -m "ci: add CI, GitHub Pages deploy and Playwright smoke test"
 ### Task 4: Data model and pure helpers
 
 **Files:**
+
 - Create: `src/data/types.ts`, `src/data/errors.ts`, `src/data/stats.ts`, `src/data/channels.ts`, `src/data/search.ts`, `src/data/growable.ts`
 - Test: `tests/unit/data/stats.test.ts`, `tests/unit/data/channels.test.ts`, `tests/unit/data/search.test.ts`, `tests/unit/data/growable.test.ts`
 
 **Interfaces:**
+
 - Produces (exact):
   - `interface Log`, `interface Channel`, `type TimeSource`, `interface ParseWarning` (code below)
   - `type LogErrorCode = 'empty' | 'no-numeric-columns' | 'unsupported' | 'out-of-memory' | 'internal'`; `class LogParseError extends Error { code: LogErrorCode }`
@@ -749,10 +776,10 @@ git commit -m "ci: add CI, GitHub Pages deploy and Playwright smoke test"
 - [ ] **Step 1: Write the types (no test — compile-checked by later tasks)**
 
 `src/data/types.ts`:
+
 ```ts
 export type TimeSource =
-  | { kind: 'column'; channelId: string; originalUnit: 's' | 'ms' | 'datetime' }
-  | { kind: 'index' };
+  { kind: 'column'; channelId: string; originalUnit: 's' | 'ms' | 'datetime' } | { kind: 'index' };
 
 export interface ParseWarning {
   code: string;
@@ -797,8 +824,10 @@ export interface Log {
 ```
 
 `src/data/errors.ts`:
+
 ```ts
-export type LogErrorCode = 'empty' | 'no-numeric-columns' | 'unsupported' | 'out-of-memory' | 'internal';
+export type LogErrorCode =
+  'empty' | 'no-numeric-columns' | 'unsupported' | 'out-of-memory' | 'internal';
 
 export class LogParseError extends Error {
   readonly code: LogErrorCode;
@@ -814,6 +843,7 @@ export class LogParseError extends Error {
 - [ ] **Step 2: Write the failing tests**
 
 `tests/unit/data/stats.test.ts`:
+
 ```ts
 import { expect, test } from 'vitest';
 import { finiteMinMax } from '@/data/stats';
@@ -830,6 +860,7 @@ test('returns NaN bounds when nothing is finite', () => {
 ```
 
 `tests/unit/data/channels.test.ts`:
+
 ```ts
 import { describe, expect, test } from 'vitest';
 import { findChannel, splitHeaderUnit } from '@/data/channels';
@@ -856,7 +887,14 @@ describe('splitHeaderUnit', () => {
 
 describe('findChannel', () => {
   const ch = (header: string, name: string): Channel => ({
-    id: header, header, name, kind: 'numeric', values: null, text: null, min: NaN, max: NaN,
+    id: header,
+    header,
+    name,
+    kind: 'numeric',
+    values: null,
+    text: null,
+    min: NaN,
+    max: NaN,
   });
   const log = { channels: [ch('MAP (kPa)', 'MAP'), ch('RPM', 'RPM')] } as Log;
 
@@ -876,6 +914,7 @@ describe('findChannel', () => {
 ```
 
 `tests/unit/data/search.test.ts`:
+
 ```ts
 import { expect, test } from 'vitest';
 import { filterByQuery, fuzzyScore } from '@/data/search';
@@ -905,6 +944,7 @@ test('filterByQuery drops non-matches and sorts by score', () => {
 ```
 
 `tests/unit/data/growable.test.ts`:
+
 ```ts
 import { expect, test } from 'vitest';
 import { GrowableF64 } from '@/data/growable';
@@ -927,6 +967,7 @@ Expected: FAIL — modules not found.
 - [ ] **Step 4: Implement**
 
 `src/data/stats.ts`:
+
 ```ts
 export function finiteMinMax(values: ArrayLike<number>): { min: number; max: number } {
   let min = Infinity;
@@ -942,6 +983,7 @@ export function finiteMinMax(values: ArrayLike<number>): { min: number; max: num
 ```
 
 `src/data/channels.ts`:
+
 ```ts
 import type { Channel, Log } from './types';
 
@@ -965,6 +1007,7 @@ export function findChannel(log: Log, header: string): Channel | undefined {
 ```
 
 `src/data/search.ts`:
+
 ```ts
 /**
  * Scores how well `text` matches `query`: substring matches score highest (earlier is better),
@@ -1005,6 +1048,7 @@ export function filterByQuery<T>(items: T[], query: string, text: (item: T) => s
 ```
 
 `src/data/growable.ts`:
+
 ```ts
 /** Append-only Float64Array that doubles its capacity as needed. */
 export class GrowableF64 {
@@ -1045,10 +1089,12 @@ git commit -m "feat(data): log model, errors, stats, header units, fuzzy search"
 ### Task 5: CSV primitives — decoding, numbers, sniffing
 
 **Files:**
+
 - Create: `src/io/csv/decode.ts`, `src/io/csv/number.ts`, `src/io/csv/sniff.ts`
 - Test: `tests/unit/io/decode.test.ts`, `tests/unit/io/number.test.ts`, `tests/unit/io/sniff.test.ts`
 
 **Interfaces:**
+
 - Produces (exact):
   - `type TextEncodingName = 'utf-8' | 'windows-1252'`; `decodeBytes(bytes: Uint8Array): { text: string; encoding: TextEncodingName }`
   - `parseNumber(cell: string, decimal: '.' | ','): number` — NaN for blank/non-numeric
@@ -1063,6 +1109,7 @@ git commit -m "feat(data): log model, errors, stats, header units, fuzzy search"
 - [ ] **Step 1: Write the failing tests**
 
 `tests/unit/io/decode.test.ts`:
+
 ```ts
 // @vitest-environment node
 import { expect, test } from 'vitest';
@@ -1075,12 +1122,17 @@ test('decodes UTF-8 and strips a BOM', () => {
 
 test('falls back to windows-1252 when the bytes are not valid UTF-8', () => {
   // "Temp (°C)" with ° as the single windows-1252 byte 0xB0
-  const bytes = new Uint8Array([...new TextEncoder().encode('Temp ('), 0xb0, ...new TextEncoder().encode('C)\n1')]);
+  const bytes = new Uint8Array([
+    ...new TextEncoder().encode('Temp ('),
+    0xb0,
+    ...new TextEncoder().encode('C)\n1'),
+  ]);
   expect(decodeBytes(bytes)).toEqual({ text: 'Temp (°C)\n1', encoding: 'windows-1252' });
 });
 ```
 
 `tests/unit/io/number.test.ts`:
+
 ```ts
 import { expect, test } from 'vitest';
 import { parseNumber } from '@/io/csv/number';
@@ -1102,6 +1154,7 @@ test.each(['', '   ', 'abc', '12abc', 'Closed Loop', '1,234', 'Infinity'])('%j i
 ```
 
 `tests/unit/io/sniff.test.ts`:
+
 ```ts
 import { describe, expect, test } from 'vitest';
 import {
@@ -1141,7 +1194,15 @@ describe('detectDelimiter', () => {
 
 describe('detectDecimalComma', () => {
   test('true when comma decimals dominate a non-comma file', () => {
-    expect(detectDecimalComma([['0,05', '812,3'], ['0,10', '815']], ';')).toBe(true);
+    expect(
+      detectDecimalComma(
+        [
+          ['0,05', '812,3'],
+          ['0,10', '815'],
+        ],
+        ';',
+      ),
+    ).toBe(true);
   });
   test('false for dot decimals', () => {
     expect(detectDecimalComma([['0.05', '812.3']], ';')).toBe(false);
@@ -1153,7 +1214,9 @@ describe('detectDecimalComma', () => {
 
 describe('findHeaderIndex', () => {
   test('skips preamble lines with a different field count', () => {
-    expect(findHeaderIndex(['Capture Date: 2026-10-01', 'Logger: X', 'Time;RPM', '0;800'], ';')).toBe(2);
+    expect(
+      findHeaderIndex(['Capture Date: 2026-10-01', 'Logger: X', 'Time;RPM', '0;800'], ';'),
+    ).toBe(2);
   });
   test('skips mostly-blank preamble lines that happen to have the right count', () => {
     expect(findHeaderIndex(['Exported,,', 'Time,RPM,AFR', '0,800,14.7'], ',')).toBe(1);
@@ -1177,6 +1240,7 @@ Expected: FAIL — modules not found.
 - [ ] **Step 3: Implement**
 
 `src/io/csv/decode.ts`:
+
 ```ts
 export type TextEncodingName = 'utf-8' | 'windows-1252';
 
@@ -1189,9 +1253,11 @@ export function decodeBytes(bytes: Uint8Array): { text: string; encoding: TextEn
   }
 }
 ```
+
 (`TextDecoder` strips a UTF-8 BOM by default.)
 
 `src/io/csv/number.ts`:
+
 ```ts
 /** Parses a CSV cell as a finite number; NaN for blank or non-numeric cells. */
 export function parseNumber(cell: string, decimal: '.' | ','): number {
@@ -1204,6 +1270,7 @@ export function parseNumber(cell: string, decimal: '.' | ','): number {
 ```
 
 `src/io/csv/sniff.ts`:
+
 ```ts
 import { parseNumber } from './number';
 
@@ -1236,7 +1303,10 @@ export function splitLine(line: string, delimiter: string): string[] {
   return out;
 }
 
-export function modalFieldCount(lines: string[], delimiter: string): { count: number; lines: number } {
+export function modalFieldCount(
+  lines: string[],
+  delimiter: string,
+): { count: number; lines: number } {
   const freq = new Map<number, number>();
   for (const line of lines) {
     const n = splitLine(line, delimiter).length;
@@ -1323,10 +1393,12 @@ git commit -m "feat(io): CSV decoding, number parsing and layout sniffing"
 ### Task 6: CSV parser — `parseCsvText`
 
 **Files:**
+
 - Create: `src/io/csv/time.ts`, `src/io/csv/parseCsv.ts`, `tests/fixtures/autodata-sheet2.csv` (exact copy of the user's "dummy autodata - Sheet2 (4).csv": header `Accelerator Position (°TPS),Calculated MAP (psi),Coolant Temperature (°C),Engine Load (mg/stroke),Filtered Load (mg/stroke),Intake Air Temperature (°C)` followed by its data rows, UTF-8)
 - Test: `tests/unit/io/time.test.ts`, `tests/unit/io/parseCsv.test.ts`, `tests/unit/io/parseCsv.perf.test.ts`
 
 **Interfaces:**
+
 - Consumes: Task 4 (`Log`, `Channel`, `ParseWarning`, `TimeSource`, `LogParseError`, `finiteMinMax`, `splitHeaderUnit`, `GrowableF64`), Task 5 (all of `sniff.ts`, `parseNumber`, `TextEncodingName`).
 - Produces (exact):
   - `isTimeChannel(name: string, unit?: string): boolean`; `isMillisChannel(name: string, unit?: string): boolean`
@@ -1344,6 +1416,7 @@ Save the user's file as `tests/fixtures/autodata-sheet2.csv` (UTF-8, unchanged c
 - [ ] **Step 2: Write the failing time-helper tests**
 
 `tests/unit/io/time.test.ts`:
+
 ```ts
 import { describe, expect, test } from 'vitest';
 import {
@@ -1401,6 +1474,7 @@ test('toRelativeSeconds scales, rebases and forward-fills', () => {
   ]);
 });
 ```
+
 (`[0, 0, 0, 0.1]`: `(1100 - 1000) * 0.001` is exactly `0.1` in IEEE doubles.)
 
 - [ ] **Step 3: Run to verify failure**
@@ -1499,7 +1573,10 @@ export function pickTime(
         code: 'time-not-monotonic',
         message: `"${rejected.header}" goes backwards (logger reset?), so samples are plotted by row number.`,
       }
-    : { code: 'no-time-column', message: 'No time column found, so samples are plotted by row number.' };
+    : {
+        code: 'no-time-column',
+        message: 'No time column found, so samples are plotted by row number.',
+      };
   return { time, timeSource: { kind: 'index' }, warning };
 }
 ```
@@ -1512,6 +1589,7 @@ Expected: PASS.
 - [ ] **Step 6: Write the failing parser tests**
 
 `tests/unit/io/parseCsv.test.ts`:
+
 ```ts
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
@@ -1523,7 +1601,8 @@ import { parseCsvText } from '@/io/csv/parseCsv';
 const parse = (text: string) => parseCsvText(text, { fileName: 'test.csv', encoding: 'utf-8' });
 const byName = (log: Log, name: string) => {
   const ch = log.channels.find((c) => c.name === name);
-  if (!ch) throw new Error(`no channel ${name}; have ${log.channels.map((c) => c.name).join(', ')}`);
+  if (!ch)
+    throw new Error(`no channel ${name}; have ${log.channels.map((c) => c.name).join(', ')}`);
   return ch;
 };
 const nums = (log: Log, name: string) => Array.from(byName(log, name).values!);
@@ -1578,8 +1657,16 @@ test('semicolons, decimal commas, preamble, units row and a text column', () => 
   expect(byName(log, 'RPM').unit).toBe('rpm');
   expect(byName(log, 'Mode').unit).toBeUndefined();
   expect(nums(log, 'RPM')).toEqual([812, 815.5, 1020]);
-  expect(byName(log, 'Mode')).toMatchObject({ kind: 'text', values: null, text: ['Idle', 'Idle', 'Open Loop'] });
-  expect(log.timeSource).toEqual({ kind: 'column', channelId: byName(log, 'Time').id, originalUnit: 's' });
+  expect(byName(log, 'Mode')).toMatchObject({
+    kind: 'text',
+    values: null,
+    text: ['Idle', 'Idle', 'Open Loop'],
+  });
+  expect(log.timeSource).toEqual({
+    kind: 'column',
+    channelId: byName(log, 'Time').id,
+    originalUnit: 's',
+  });
   expect(log.time[2]).toBeCloseTo(0.1);
 });
 
@@ -1617,7 +1704,9 @@ test('a few non-numeric cells become gaps with a warning', () => {
   const log = parse(['n,v', ...rows].join('\n'));
   expect(byName(log, 'v').kind).toBe('numeric');
   expect(byName(log, 'v').values![7]).toBeNaN();
-  expect(log.meta.warnings).toContainEqual(expect.objectContaining({ code: 'non-numeric-cells', count: 1 }));
+  expect(log.meta.warnings).toContainEqual(
+    expect.objectContaining({ code: 'non-numeric-cells', count: 1 }),
+  );
 });
 
 test('no header row → generated names', () => {
@@ -1638,7 +1727,8 @@ describe('errors', () => {
   test('empty file', () => expect(codeOf('')).toBe('empty'));
   test('blank lines only', () => expect(codeOf('\n \n')).toBe('empty'));
   test('header but no rows', () => expect(codeOf('a,b\n')).toBe('empty'));
-  test('no numeric columns', () => expect(codeOf('name,colour\nfoo,red\nbar,blue')).toBe('no-numeric-columns'));
+  test('no numeric columns', () =>
+    expect(codeOf('name,colour\nfoo,red\nbar,blue')).toBe('no-numeric-columns'));
 });
 
 describe('review focus', () => {
@@ -1674,7 +1764,11 @@ describe('review focus', () => {
 test('reports progress ending at 1', () => {
   const seen: number[] = [];
   const rows = Array.from({ length: 50_000 }, (_, i) => `${i},${i}`).join('\n');
-  parseCsvText(`a,b\n${rows}`, { fileName: 'p.csv', encoding: 'utf-8', onProgress: (f) => seen.push(f) });
+  parseCsvText(`a,b\n${rows}`, {
+    fileName: 'p.csv',
+    encoding: 'utf-8',
+    onProgress: (f) => seen.push(f),
+  });
   expect(seen.length).toBeGreaterThan(1);
   expect(seen.at(-1)).toBe(1);
   expect(seen.every((f, i) => i === 0 || f >= seen[i - 1])).toBe(true);
@@ -1682,6 +1776,7 @@ test('reports progress ending at 1', () => {
 ```
 
 `tests/unit/io/parseCsv.perf.test.ts`:
+
 ```ts
 // @vitest-environment node
 import { expect, test } from 'vitest';
@@ -1693,7 +1788,7 @@ test('parses 250k rows × 20 columns within budget', () => {
   const lines = [header];
   for (let r = 0; r < 250_000; r++) {
     const cells = [(r / 20).toFixed(2)];
-    for (let c = 0; c < 19; c++) cells.push(((r * (c + 1)) % 1000 / 10).toFixed(1));
+    for (let c = 0; c < 19; c++) cells.push((((r * (c + 1)) % 1000) / 10).toFixed(1));
     lines.push(cells.join(','));
   }
   const text = lines.join('\n');
@@ -1981,10 +2076,12 @@ git commit -m "feat(io): CSV parser with units, time detection and messy-file ha
 ### Task 7: Reader registry and parse worker
 
 **Files:**
+
 - Create: `src/io/types.ts`, `src/io/csv/reader.ts`, `src/io/registry.ts`, `src/workers/protocol.ts`, `src/workers/parse.worker.ts`, `src/workers/parseClient.ts`
 - Test: `tests/unit/io/registry.test.ts`, `tests/unit/workers/protocol.test.ts`
 
 **Interfaces:**
+
 - Consumes: `parseCsvText`, `decodeBytes`, `Log`, `LogParseError`, `LogErrorCode`.
 - Produces (exact):
   - `interface LogReader { id: string; extensions: string[]; sniff(head: Uint8Array, fileName: string): number; parse(file: File, onProgress: (fraction: number) => void): Promise<Log> }`
@@ -1997,6 +2094,7 @@ git commit -m "feat(io): CSV parser with units, time detection and messy-file ha
 - [ ] **Step 1: Write the failing tests**
 
 `tests/unit/io/registry.test.ts`:
+
 ```ts
 // @vitest-environment node
 import { expect, test } from 'vitest';
@@ -2012,7 +2110,9 @@ test('csvReader prefers known extensions and rejects binary', () => {
 
 test('readLog parses a CSV File and reports progress', async () => {
   const seen: number[] = [];
-  const log = await readLog(new File(['Time,RPM\n0,800\n0.05,810'], 'run.csv'), (f) => seen.push(f));
+  const log = await readLog(new File(['Time,RPM\n0,800\n0.05,810'], 'run.csv'), (f) =>
+    seen.push(f),
+  );
   expect(log.fileName).toBe('run.csv');
   expect(log.rowCount).toBe(2);
   expect(log.meta.encoding).toBe('utf-8');
@@ -2027,6 +2127,7 @@ test('readLog rejects unsupported files', async () => {
 ```
 
 `tests/unit/workers/protocol.test.ts`:
+
 ```ts
 import { expect, test } from 'vitest';
 import { LogParseError } from '@/data/errors';
@@ -2050,9 +2151,19 @@ test('transferablesOf lists each numeric buffer once', () => {
 });
 
 test('toErrorResponse maps error kinds', () => {
-  expect(toErrorResponse(new LogParseError('empty', 'nope'))).toEqual({ type: 'error', code: 'empty', message: 'nope' });
-  expect(toErrorResponse(new RangeError('Array buffer allocation failed'))).toMatchObject({ code: 'out-of-memory' });
-  expect(toErrorResponse(new Error('boom'))).toEqual({ type: 'error', code: 'internal', message: 'boom' });
+  expect(toErrorResponse(new LogParseError('empty', 'nope'))).toEqual({
+    type: 'error',
+    code: 'empty',
+    message: 'nope',
+  });
+  expect(toErrorResponse(new RangeError('Array buffer allocation failed'))).toMatchObject({
+    code: 'out-of-memory',
+  });
+  expect(toErrorResponse(new Error('boom'))).toEqual({
+    type: 'error',
+    code: 'internal',
+    message: 'boom',
+  });
   expect(toErrorResponse('weird')).toMatchObject({ code: 'internal' });
 });
 ```
@@ -2065,6 +2176,7 @@ Expected: FAIL — modules not found.
 - [ ] **Step 3: Implement**
 
 `src/io/types.ts`:
+
 ```ts
 import type { Log } from '@/data/types';
 
@@ -2078,6 +2190,7 @@ export interface LogReader {
 ```
 
 `src/io/csv/reader.ts`:
+
 ```ts
 import type { LogReader } from '../types';
 import { decodeBytes } from './decode';
@@ -2102,6 +2215,7 @@ export const csvReader: LogReader = {
 ```
 
 `src/io/registry.ts`:
+
 ```ts
 import { LogParseError } from '@/data/errors';
 import type { Log } from '@/data/types';
@@ -2130,6 +2244,7 @@ export async function readLog(file: File, onProgress: (fraction: number) => void
 ```
 
 `src/workers/protocol.ts`:
+
 ```ts
 import { LogParseError, type LogErrorCode } from '@/data/errors';
 import type { Log } from '@/data/types';
@@ -2162,11 +2277,18 @@ export function toErrorResponse(err: unknown): Extract<WorkerResponse, { type: '
 ```
 
 `src/workers/parse.worker.ts`:
+
 ```ts
 import { readLog } from '@/io/registry';
-import { toErrorResponse, transferablesOf, type WorkerRequest, type WorkerResponse } from './protocol';
+import {
+  toErrorResponse,
+  transferablesOf,
+  type WorkerRequest,
+  type WorkerResponse,
+} from './protocol';
 
-const post = (msg: WorkerResponse, transfer: Transferable[] = []) => self.postMessage(msg, { transfer });
+const post = (msg: WorkerResponse, transfer: Transferable[] = []) =>
+  self.postMessage(msg, { transfer });
 
 self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   try {
@@ -2179,13 +2301,17 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
 ```
 
 `src/workers/parseClient.ts`:
+
 ```ts
 import { LogParseError } from '@/data/errors';
 import type { Log } from '@/data/types';
 import type { WorkerRequest, WorkerResponse } from './protocol';
 
 /** Parses a file in a fresh Web Worker so large logs never block the UI. */
-export function parseFileInWorker(file: File, onProgress: (fraction: number) => void): Promise<Log> {
+export function parseFileInWorker(
+  file: File,
+  onProgress: (fraction: number) => void,
+): Promise<Log> {
   const worker = new Worker(new URL('./parse.worker.ts', import.meta.url), { type: 'module' });
   return new Promise<Log>((resolve, reject) => {
     worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
@@ -2225,10 +2351,12 @@ git commit -m "feat(io): pluggable reader registry and off-thread parse worker"
 ### Task 8: Log store
 
 **Files:**
+
 - Create: `src/state/logStore.ts`
 - Test: `tests/unit/state/logStore.test.ts`
 
 **Interfaces:**
+
 - Consumes: `parseFileInWorker`, `Log`, `LogParseError`, `LogErrorCode`.
 - Produces (exact):
   - `type ParseFn = (file: File, onProgress: (fraction: number) => void) => Promise<Log>`
@@ -2241,6 +2369,7 @@ git commit -m "feat(io): pluggable reader registry and off-thread parse worker"
 - [ ] **Step 1: Write the failing test**
 
 `tests/unit/state/logStore.test.ts`:
+
 ```ts
 import { describe, expect, test, vi } from 'vitest';
 import { LogParseError } from '@/data/errors';
@@ -2298,7 +2427,11 @@ describe('logStore', () => {
       throw new Error('boom');
     });
     await store.getState().loadFile(file('x.csv'));
-    expect(store.getState().status).toMatchObject({ kind: 'error', code: 'internal', message: 'boom' });
+    expect(store.getState().status).toMatchObject({
+      kind: 'error',
+      code: 'internal',
+      message: 'boom',
+    });
   });
 
   test('loadSample fetches the bundled file and parses it', async () => {
@@ -2349,7 +2482,11 @@ export interface SampleLog {
 
 export const SAMPLES: SampleLog[] = [
   { label: 'Demo engine run', fileName: 'demo-run.csv', path: 'samples/demo-run.csv' },
-  { label: 'Real-world export', fileName: 'autodata-sheet2.csv', path: 'samples/autodata-sheet2.csv' },
+  {
+    label: 'Real-world export',
+    fileName: 'autodata-sheet2.csv',
+    path: 'samples/autodata-sheet2.csv',
+  },
 ];
 
 /** Above this size the UI asks before loading. */
@@ -2398,7 +2535,14 @@ export function createLogStore(
         const blob = await res.blob();
         await get().loadFile(new File([blob], sample.fileName, { type: 'text/csv' }));
       } catch (err) {
-        set({ status: { kind: 'error', fileName: sample.fileName, code: 'internal', message: message(err) } });
+        set({
+          status: {
+            kind: 'error',
+            fileName: sample.fileName,
+            code: 'internal',
+            message: message(err),
+          },
+        });
       }
     },
 
@@ -2432,16 +2576,19 @@ git commit -m "feat(state): log store with progress, errors and bundled samples"
 ### Task 9: Sample logs
 
 **Files:**
+
 - Create: `scripts/demoLog.ts`, `scripts/generate-sample.ts`, `public/samples/demo-run.csv` (generated), `public/samples/autodata-sheet2.csv` (copy of the fixture)
 - Test: `tests/unit/scripts/demoLog.test.ts`
 
 **Interfaces:**
+
 - Consumes: `parseCsvText`.
 - Produces: `DEMO_HEADER: string[]`; `generateDemoLog(seed?: number): string`; the two files served at `samples/demo-run.csv` and `samples/autodata-sheet2.csv` (matching `SAMPLES` in Task 8).
 
 - [ ] **Step 1: Write the failing test**
 
 `tests/unit/scripts/demoLog.test.ts`:
+
 ```ts
 // @vitest-environment node
 import { expect, test } from 'vitest';
@@ -2489,6 +2636,7 @@ Expected: FAIL — `scripts/demoLog` not found.
 - [ ] **Step 3: Implement the generator**
 
 `scripts/demoLog.ts`:
+
 ```ts
 /**
  * Deterministic, physically plausible demo log: 8 minutes at 20 Hz from a turbocharged 5-speed car —
@@ -2599,14 +2747,22 @@ export function generateDemoLog(seed = 412): string {
             ? 'Idle'
             : 'Closed Loop';
     const targetAfr =
-      mode === 'Decel Cut' ? 21.5 : mode === 'Open Loop' ? 12.6 - 1.2 * clamp((map - 105) / 75, 0, 1) : 14.7;
+      mode === 'Decel Cut'
+        ? 21.5
+        : mode === 'Open Loop'
+          ? 12.6 - 1.2 * clamp((map - 105) / 75, 0, 1)
+          : 14.7;
     afr = toward(afr, targetAfr, 0.15) + noise(0.08);
 
     clt = clt < 88 ? clt + 0.0045 : 88;
     const coolant = clt >= 88 ? 88 + 1.2 * Math.sin(t / 40) : clt;
     iat = toward(iat, 24 + 18 * spool * load, 0.002) + noise(0.02);
     const ignition =
-      map > 100 ? 14 - (map - 100) * 0.05 : phase === 'idle' ? 12 : 22 + 12 * (1 - load) * clamp(rpm / 4000, 0, 1);
+      map > 100
+        ? 14 - (map - 100) * 0.05
+        : phase === 'idle'
+          ? 12
+          : 22 + 12 * (1 - load) * clamp(rpm / 4000, 0, 1);
     const battery = 14.1 - 0.25 * load + noise(0.04);
 
     rows.push(
@@ -2629,6 +2785,7 @@ export function generateDemoLog(seed = 412): string {
 ```
 
 `scripts/generate-sample.ts`:
+
 ```ts
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -2650,6 +2807,7 @@ npm run sample
 cp tests/fixtures/autodata-sheet2.csv public/samples/autodata-sheet2.csv
 head -3 public/samples/demo-run.csv
 ```
+
 Expected: tests PASS; `Wrote 9600 rows to .../public/samples/demo-run.csv`; header line followed by two data rows.
 
 - [ ] **Step 5: Commit**
@@ -2665,17 +2823,20 @@ git commit -m "feat: deterministic demo log generator and bundled sample logs"
 ### Task 10: Temporary load & inspect screen, with end-to-end tests
 
 **Files:**
+
 - Create: `src/config.ts`, `src/ui/LoadScreen.tsx`, `tests/e2e/load.spec.ts`
 - Modify: `src/App.tsx` (replace `<main>` placeholder with `<LoadScreen />`)
 - Test: `tests/unit/ui/LoadScreen.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `useLogStore`, `selectActiveLog`, `SAMPLES`, `LARGE_FILE_BYTES`, `Log`.
 - Produces: `REPO_URL` constant; `LoadScreen` component (TEMPORARY — Plan B replaces it; only `REPO_URL` and the drop/confirm behaviour carry over).
 
 - [ ] **Step 1: Write the failing component test**
 
 `tests/unit/ui/LoadScreen.test.tsx`:
+
 ```tsx
 import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, expect, test } from 'vitest';
@@ -2727,20 +2888,33 @@ Expected: FAIL — `@/ui/LoadScreen` not found.
 - [ ] **Step 3: Implement**
 
 `src/config.ts`:
+
 ```ts
 export const REPO_URL = 'https://github.com/ElvisOkereke/datalogviewer';
 ```
 
 `src/ui/LoadScreen.tsx`:
+
 ```tsx
 import { useState, type DragEvent } from 'react';
 import { REPO_URL } from '@/config';
 import type { Log } from '@/data/types';
-import { LARGE_FILE_BYTES, SAMPLES, selectActiveLog, useLogStore, type LoadStatus } from '@/state/logStore';
+import {
+  LARGE_FILE_BYTES,
+  SAMPLES,
+  selectActiveLog,
+  useLogStore,
+  type LoadStatus,
+} from '@/state/logStore';
 
 // TEMPORARY: proves the data pipeline end to end. Plan B replaces this with the Workbench UI.
 
-const DELIMITER_NAMES: Record<string, string> = { ',': 'Comma', ';': 'Semicolon', '\t': 'Tab', '|': 'Pipe' };
+const DELIMITER_NAMES: Record<string, string> = {
+  ',': 'Comma',
+  ';': 'Semicolon',
+  '\t': 'Tab',
+  '|': 'Pipe',
+};
 const UNIT_LABEL = { s: 'seconds', ms: 'milliseconds', datetime: 'date-time' } as const;
 
 const fmt = (n: number) =>
@@ -2770,7 +2944,9 @@ export function LoadScreen() {
     const mb = Math.round(file.size / (1024 * 1024));
     if (
       file.size > LARGE_FILE_BYTES &&
-      !window.confirm(`"${file.name}" is ${mb} MB. Large logs take longer and use a lot of memory. Load it anyway?`)
+      !window.confirm(
+        `"${file.name}" is ${mb} MB. Large logs take longer and use a lot of memory. Load it anyway?`,
+      )
     ) {
       return;
     }
@@ -2820,17 +2996,31 @@ export function LoadScreen() {
           <span className="text-sm text-muted-foreground">or drop a CSV anywhere</span>
         </section>
 
-        {status.kind === 'loading' && <Progress fileName={status.fileName} progress={status.progress} />}
+        {status.kind === 'loading' && (
+          <Progress fileName={status.fileName} progress={status.progress} />
+        )}
 
         {status.kind === 'error' && (
-          <div role="alert" className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm">
+          <div
+            role="alert"
+            className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm"
+          >
             <p className="font-semibold">Couldn't open {status.fileName}</p>
             <p className="mt-1 text-muted-foreground">{status.message}</p>
             <div className="mt-3 flex items-center gap-4">
-              <button type="button" onClick={dismissError} className="rounded-md border border-border px-2.5 py-1 hover:bg-accent">
+              <button
+                type="button"
+                onClick={dismissError}
+                className="rounded-md border border-border px-2.5 py-1 hover:bg-accent"
+              >
                 Dismiss
               </button>
-              <a href={reportUrl(status)} target="_blank" rel="noreferrer" className="text-primary underline">
+              <a
+                href={reportUrl(status)}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary underline"
+              >
                 Report this file
               </a>
             </div>
@@ -2890,8 +3080,8 @@ function LogSummary({ log }: { log: Log }) {
         )}
         <dt className="text-muted-foreground">Format</dt>
         <dd>
-          {DELIMITER_NAMES[log.meta.delimiter] ?? log.meta.delimiter}-separated · decimal "{log.meta.decimal}" ·{' '}
-          {log.meta.encoding}
+          {DELIMITER_NAMES[log.meta.delimiter] ?? log.meta.delimiter}-separated · decimal "
+          {log.meta.decimal}" · {log.meta.encoding}
         </dd>
         {log.meta.preamble.length > 0 && (
           <>
@@ -2902,7 +3092,10 @@ function LogSummary({ log }: { log: Log }) {
       </dl>
 
       {log.meta.warnings.length > 0 && (
-        <ul aria-label="Warnings" className="list-disc rounded-md border border-primary/40 bg-primary/10 py-3 pr-4 pl-8 text-sm">
+        <ul
+          aria-label="Warnings"
+          className="list-disc rounded-md border border-primary/40 bg-primary/10 py-3 pr-4 pl-8 text-sm"
+        >
           {log.meta.warnings.map((w) => (
             <li key={`${w.code}:${w.message}`}>{w.message}</li>
           ))}
@@ -2946,6 +3139,7 @@ Expected: PASS.
 - [ ] **Step 5: Write the E2E test (exercises the real worker in a browser)**
 
 `tests/e2e/load.spec.ts`:
+
 ```ts
 import { expect, test } from '@playwright/test';
 
@@ -2998,6 +3192,7 @@ git commit -m "feat: temporary load & inspect screen with end-to-end tests"
 ### Task 11: README, changelog and first deployment
 
 **Files:**
+
 - Modify: `README.md` (full rewrite)
 - Create: `CHANGELOG.md`
 
@@ -3077,6 +3272,7 @@ git push origin flutter-prototype
 gh repo rename datalogviewer --yes
 git remote -v
 ```
+
 Expected: remote URLs now end in `datalogviewer.git` (gh updates `origin`; if not, `git remote set-url origin https://github.com/ElvisOkereke/datalogviewer.git`).
 
 - [ ] **Step 6: Open the PR and wait for CI**
@@ -3086,6 +3282,7 @@ git push -u origin web-rebuild
 gh pr create --base main --head web-rebuild --title "Web rebuild: foundation and data pipeline" --body "Plan A of the web rebuild. See docs/superpowers/plans/2026-10-17-plan-a-foundation-and-data.md."
 gh pr checks --watch
 ```
+
 Expected: the `check` job passes.
 
 - [ ] **Step 7: Enable Pages with the Actions source**
@@ -3094,6 +3291,7 @@ Expected: the `check` job passes.
 gh api -X POST repos/ElvisOkereke/datalogviewer/pages -f build_type=workflow \
   || gh api -X PUT repos/ElvisOkereke/datalogviewer/pages -f build_type=workflow
 ```
+
 Expected: JSON with `"build_type": "workflow"` (the PUT covers the case where Pages already exists).
 
 - [ ] **Step 8: Merge and verify the deployment**
@@ -3104,6 +3302,7 @@ gh run watch "$(gh run list --workflow Deploy --limit 1 --json databaseId --jq '
 curl -sI https://elvisokereke.github.io/datalogviewer/ | head -1
 curl -s https://elvisokereke.github.io/datalogviewer/samples/demo-run.csv | head -2
 ```
+
 Expected: Deploy run succeeds; `HTTP/2 200`; the CSV header and first row print.
 
 ---

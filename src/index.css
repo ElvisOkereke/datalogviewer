@@ -1,0 +1,94 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* Instrument theme — dark is the default. */
+:root {
+  color-scheme: dark;
+  --background: #0e1013;
+  --foreground: #e7ebef;
+  --panel: #15181c;
+  --card: #15181c;
+  --card-foreground: #e7ebef;
+  --popover: #1c2026;
+  --popover-foreground: #e7ebef;
+  --primary: #f5a524;
+  --primary-foreground: #111316;
+  --secondary: #1c2026;
+  --secondary-foreground: #e7ebef;
+  --muted: #1c2026;
+  --muted-foreground: #7d8792;
+  --accent: #1f242b;
+  --accent-foreground: #e7ebef;
+  --destructive: #ff5d5d;
+  --border: #252a31;
+  --input: #252a31;
+  --ring: #f5a524;
+  --radius: 5px;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --background: #f7f8fa;
+  --foreground: #16191d;
+  --panel: #ffffff;
+  --card: #ffffff;
+  --card-foreground: #16191d;
+  --popover: #ffffff;
+  --popover-foreground: #16191d;
+  --primary: #c97a00;
+  --primary-foreground: #16191d;
+  --secondary: #eef0f3;
+  --secondary-foreground: #16191d;
+  --muted: #eef0f3;
+  --muted-foreground: #5f6873;
+  --accent: #e9edf2;
+  --accent-foreground: #16191d;
+  --destructive: #d42a2a;
+  --border: #e1e4e8;
+  --input: #d5d9de;
+  --ring: #c97a00;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-panel: var(--panel);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+}
+
+@utility num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
