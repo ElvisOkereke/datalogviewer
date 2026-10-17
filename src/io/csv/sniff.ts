@@ -6,11 +6,15 @@ export type Delimiter = (typeof DELIMITERS)[number];
 const SAMPLE_LINES = 50;
 const CONSISTENT = 0.8;
 
-/** Quote-aware split of one line. Only used for sniffing; full parsing uses Papa Parse. */
+/**
+ * Quote-aware split of one line, used only to guess the delimiter. Like Papa Parse, a quote opens
+ * a quoted field only at the start of a field; elsewhere it is an ordinary character.
+ */
 export function splitLine(line: string, delimiter: string): string[] {
   const out: string[] = [];
   let cur = '';
   let inQuotes = false;
+  let fieldStart = true;
   for (let i = 0; i < line.length; i++) {
     const ch = line[i];
     if (inQuotes) {
@@ -19,11 +23,14 @@ export function splitLine(line: string, delimiter: string): string[] {
         cur += '"';
         i++;
       } else inQuotes = false;
-    } else if (ch === '"') inQuotes = true;
+    } else if (ch === '"' && fieldStart) inQuotes = true;
     else if (ch === delimiter) {
       out.push(cur);
       cur = '';
+      fieldStart = true;
+      continue;
     } else cur += ch;
+    fieldStart = false;
   }
   out.push(cur);
   return out;
@@ -33,11 +40,12 @@ export function modalFieldCount(
   lines: string[],
   delimiter: string,
 ): { count: number; lines: number } {
+  return modeOf(lines.map((line) => splitLine(line, delimiter).length));
+}
+
+function modeOf(counts: number[]): { count: number; lines: number } {
   const freq = new Map<number, number>();
-  for (const line of lines) {
-    const n = splitLine(line, delimiter).length;
-    freq.set(n, (freq.get(n) ?? 0) + 1);
-  }
+  for (const n of counts) freq.set(n, (freq.get(n) ?? 0) + 1);
   let best = { count: 1, lines: 0 };
   for (const [count, n] of freq) {
     if (n > best.lines || (n === best.lines && count > best.count)) best = { count, lines: n };
@@ -78,11 +86,10 @@ export function detectDecimalComma(rows: string[][], delimiter: Delimiter): bool
   return comma > dot;
 }
 
-/** First line with the file's usual field count and mostly non-blank cells; earlier lines are a preamble. */
-export function findHeaderIndex(lines: string[], delimiter: string): number {
-  const { count } = modalFieldCount(lines, delimiter);
-  const i = lines.findIndex((line) => {
-    const cells = splitLine(line, delimiter);
+/** First row with the file's usual field count and mostly non-blank cells; earlier rows are a preamble. */
+export function findHeaderIndex(rows: string[][]): number {
+  const { count } = modeOf(rows.map((r) => r.length));
+  const i = rows.findIndex((cells) => {
     const filled = cells.filter((c) => c.trim() !== '').length;
     return cells.length === count && filled * 2 >= count;
   });

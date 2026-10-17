@@ -136,6 +136,31 @@ describe('errors', () => {
   test('header but no rows', () => expect(codeOf('a,b\n')).toBe('empty'));
   test('no numeric columns', () =>
     expect(codeOf('name,colour\nfoo,red\nbar,blue')).toBe('no-numeric-columns'));
+  test('absurdly wide files are rejected instead of allocated', () => {
+    const cells = (v: (i: number) => string) =>
+      Array.from({ length: 5000 }, (_, i) => v(i)).join(',');
+    expect(codeOf(`${cells((i) => `c${i}`)}\n${cells(() => '1')}`)).toBe('unsupported');
+  });
+});
+
+describe('sniffer and parser agree on rows', () => {
+  test('delimiter-only rows above the header do not shift it', () => {
+    const log = parse('Exported by LoggerX\n,,\nTime,RPM,AFR\n0,800,14.7\n0.05,810,14.6');
+    expect(log.channels.map((c) => c.name)).toEqual(['Time', 'RPM', 'AFR']);
+    expect(log.meta.preamble).toEqual(['Exported by LoggerX']);
+    expect(log.rowCount).toBe(2);
+  });
+
+  test('a quote inside a header cell is an ordinary character', () => {
+    const log = parse('Pipe 2" (in),RPM\n1,800\n2,810');
+    expect(log.channels.map((c) => c.header)).toEqual(['Pipe 2" (in)', 'RPM']);
+  });
+
+  test('a quoted header cell spanning two lines', () => {
+    const log = parse('"Note\nline 2",RPM\n1,800\n2,810');
+    expect(log.channels.map((c) => c.header)).toEqual(['Note\nline 2', 'RPM']);
+    expect(log.rowCount).toBe(2);
+  });
 });
 
 describe('review focus', () => {

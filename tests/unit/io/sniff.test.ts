@@ -12,6 +12,9 @@ describe('splitLine', () => {
   test('honours quotes and escaped quotes', () => {
     expect(splitLine('1,"ok, fine","say ""hi"""', ',')).toEqual(['1', 'ok, fine', 'say "hi"']);
   });
+  test('a quote inside a field is an ordinary character, as in Papa Parse', () => {
+    expect(splitLine('Pipe 2" (in),RPM', ',')).toEqual(['Pipe 2" (in)', 'RPM']);
+  });
   test('keeps empty trailing fields', () => {
     expect(splitLine('a,b,,', ',')).toEqual(['a', 'b', '', '']);
   });
@@ -55,16 +58,17 @@ describe('detectDecimalComma', () => {
 });
 
 describe('findHeaderIndex', () => {
-  test('skips preamble lines with a different field count', () => {
+  const rows = (lines: string[], d: string) => lines.map((l) => splitLine(l, d));
+  test('skips preamble rows with a different field count', () => {
     expect(
-      findHeaderIndex(['Capture Date: 2026-10-01', 'Logger: X', 'Time;RPM', '0;800'], ';'),
+      findHeaderIndex(rows(['Capture Date: 2026-10-01', 'Logger: X', 'Time;RPM', '0;800'], ';')),
     ).toBe(2);
   });
-  test('skips mostly-blank preamble lines that happen to have the right count', () => {
-    expect(findHeaderIndex(['Exported,,', 'Time,RPM,AFR', '0,800,14.7'], ',')).toBe(1);
+  test('skips mostly-blank preamble rows that happen to have the right count', () => {
+    expect(findHeaderIndex(rows(['Exported,,', 'Time,RPM,AFR', '0,800,14.7'], ','))).toBe(1);
   });
   test('0 when there is no preamble', () => {
-    expect(findHeaderIndex(['a,b', '1,2'], ',')).toBe(0);
+    expect(findHeaderIndex(rows(['a,b', '1,2'], ','))).toBe(0);
   });
 });
 

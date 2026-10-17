@@ -11,7 +11,6 @@ import {
   detectDelimiter,
   findHeaderIndex,
   numericFraction,
-  splitLine,
   type Delimiter,
 } from './sniff';
 import { isTimeChannel, parseClockOrDate, pickTime, toRelativeSeconds } from './time';
@@ -37,6 +36,10 @@ interface CsvLayout {
 const SNIFF_LINES = 1200;
 const NUMERIC_THRESHOLD = 0.9;
 const PROGRESS_EVERY = 20_000;
+/** Far beyond any real logger; stops a malformed file from allocating a buffer per bogus column. */
+const MAX_COLUMNS = 4096;
+
+const PAPA_ROWS = { skipEmptyLines: 'greedy' } as const;
 
 /** The first `max` non-empty lines, without splitting the whole text. */
 export function firstLines(text: string, max: number): string[] {
@@ -64,10 +67,13 @@ function classifyColumn(cells: string[], decimal: '.' | ',', header: string): Co
   return 'text';
 }
 
-export function sniffLayout(lines: string[]): CsvLayout {
-  const delimiter = detectDelimiter(lines);
-  const preambleLines = findHeaderIndex(lines, delimiter);
-  const rows = lines.slice(preambleLines).map((l) => splitLine(l, delimiter));
+/**
+ * `headRows` must come from the same Papa Parse settings as the full parse, so row indices here
+ * (preamble length, header, units row) line up exactly with the rows the parser later streams.
+ */
+export function sniffLayout(headRows: string[][], delimiter: Delimiter): CsvLayout {
+  const preambleLines = findHeaderIndex(headRows);
+  const rows = headRows.slice(preambleLines);
   const decimal = detectDecimalComma(rows, delimiter) ? ',' : '.';
   const columnCount = rows[0]?.length ?? 0;
 
@@ -100,8 +106,21 @@ export function parseCsvText(text: string, opts: CsvParseOptions): Log {
   const lines = firstLines(text, SNIFF_LINES);
   if (lines.length === 0) throw new LogParseError('empty', `"${opts.fileName}" is empty.`);
 
-  const layout = sniffLayout(lines);
-  const { columnCount, kinds, decimal, delimiter } = layout;
+  const delimiter = detectDelimiter(lines);
+  const headRows = Papa.parse<string[]>(text, {
+    ...PAPA_ROWS,
+    delimiter,
+    preview: SNIFF_LINES,
+  }).data;
+  if (headRows.length === 0) throw new LogParseError('empty', `"${opts.fileName}" is empty.`);
+  const layout = sniffLayout(headRows, delimiter);
+  const { columnCount, kinds, decimal } = layout;
+  if (columnCount > MAX_COLUMNS) {
+    throw new LogParseError(
+      'unsupported',
+      `"${opts.fileName}" has ${columnCount.toLocaleString('en-US')} columns; DataLogViewer supports up to ${MAX_COLUMNS.toLocaleString('en-US')}.`,
+    );
+  }
   const headerRow = layout.preambleLines;
   const unitsRow = layout.hasUnitsRow ? headerRow + 1 : -1;
 
@@ -119,8 +138,8 @@ export function parseCsvText(text: string, opts: CsvParseOptions): Log {
   let firstLong = 0;
 
   Papa.parse<string[]>(text, {
+    ...PAPA_ROWS,
     delimiter,
-    skipEmptyLines: 'greedy',
     step: (result) => {
       const row = result.data;
       const r = rowIndex++;
