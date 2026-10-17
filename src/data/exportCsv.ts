@@ -27,9 +27,12 @@ export function buildCsv(log: Log, channels: Channel[], i0: number, i1: number):
   return lines.join('\n') + '\n';
 }
 
+/** The log's file name without its extension, for naming exports. */
+export const logBaseName = (log: Log) => log.fileName.replace(/\.[^.]*$/, '');
+
 /** "<log name>-<start>-<end>s.csv", or "<log name>-row<start>-<end>.csv" for index logs. */
 export function csvFileName(log: Log, r: XRange): string {
-  const base = log.fileName.replace(/\.[^.]*$/, '');
+  const base = logBaseName(log);
   if (log.timeSource.kind === 'index') {
     return `${base}-row${Math.round(r.min)}-${Math.round(r.max)}.csv`;
   }

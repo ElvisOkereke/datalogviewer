@@ -121,3 +121,24 @@ test('Export CSV downloads the visible range of the plotted channels', async ({ 
   const text = readFileSync((await file.path())!, 'utf8');
   expect(text.split('\n')[0]).toMatch(/^Time \(s\),Engine Speed \(rpm\),MAP \(kPa\)/);
 });
+
+test('Export PNG downloads the charts as a PNG image', async ({ page }) => {
+  await loadDemo(page);
+  await page.getByRole('button', { name: 'More' }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('menuitem', { name: 'Export PNG' }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe('demo-run-charts.png');
+  const bytes = readFileSync((await file.path())!);
+  expect([...bytes.subarray(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
+});
+
+test('Export PNG in the Scatter view saves the scatter plot', async ({ page }) => {
+  await loadDemo(page);
+  await page.getByRole('radio', { name: 'Scatter' }).click();
+  await expect(page.locator('.js-plotly-plot canvas').first()).toBeVisible({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'More' }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('menuitem', { name: 'Export PNG' }).click();
+  expect((await download).suggestedFilename()).toBe('demo-run-scatter.png');
+});

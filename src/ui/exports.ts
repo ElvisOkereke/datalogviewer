@@ -1,6 +1,7 @@
 import { toast } from 'sonner';
 import { findChannel } from '@/data/channels';
-import { buildCsv, csvFileName } from '@/data/exportCsv';
+import { exportChartsPng } from '@/charts/exportPng';
+import { buildCsv, csvFileName, logBaseName } from '@/data/exportCsv';
 import { sampleSpan } from '@/data/stats';
 import type { Channel, Log } from '@/data/types';
 import { bindLayout } from '@/state/layout';
@@ -36,4 +37,23 @@ export function exportCsv(log: Log): boolean {
 /** Export CSV for buttons and menus: says why when nothing is plotted. */
 export function exportCsvOrExplain(log: Log): void {
   if (!exportCsv(log)) toast('Plot a channel first — CSV export saves the plotted channels.');
+}
+
+/** Saves the current plot as PNG: the scatter (via Plotly) in Scatter view, else the chart panes. */
+export function exportPng(log: Log, scatterExporter: ((fileName: string) => void) | null): void {
+  const base = logBaseName(log);
+  const view = useLayoutStore.getState().view;
+  if (view === 'scatter') {
+    if (scatterExporter) scatterExporter(`${base}-scatter`);
+    else toast('The scatter view has nothing to export yet.');
+    return;
+  }
+  if (view === 'table') {
+    toast('Switch to Chart or Scatter to export a PNG.');
+    return;
+  }
+  const root = document.querySelector('main') ?? document.body;
+  const pane = root.querySelector('[data-testid="chart-pane"]');
+  const background = pane ? getComputedStyle(pane).backgroundColor : '#000';
+  void exportChartsPng(root, background, `${base}-charts.png`);
 }

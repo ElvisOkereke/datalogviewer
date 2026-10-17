@@ -32,7 +32,7 @@ import { ShortcutsDialog } from './ShortcutsDialog';
 import { Sidebar } from './Sidebar';
 import { Toolbar } from './Toolbar';
 import { downloadBlob } from './download';
-import { exportCsvOrExplain } from './exports';
+import { exportCsvOrExplain, exportPng } from './exports';
 import { parseLayoutFile, serializeLayout } from './layoutFile';
 import { useFileDrop } from './useFileDrop';
 import { useIsNarrow } from './useIsNarrow';
@@ -70,12 +70,14 @@ const VIEW_LABEL = {
 function Workbench({
   log,
   calcErrors,
+  onScatterExportReady,
   narrow,
   channelsOpen,
   setChannelsOpen,
 }: {
   log: Log;
   calcErrors: Record<string, string>;
+  onScatterExportReady(exporter: ((fileName: string) => void) | null): void;
   narrow: boolean;
   channelsOpen: boolean;
   setChannelsOpen(open: boolean): void;
@@ -101,7 +103,7 @@ function Workbench({
           {view === 'chart' ? (
             <PaneStack log={log} resizable={!narrow} />
           ) : view === 'scatter' ? (
-            <ScatterView log={log} />
+            <ScatterView log={log} onExportReady={onScatterExportReady} />
           ) : (
             <DataTable log={log} />
           )}
@@ -163,6 +165,10 @@ export function AppShell() {
   const { log, calcErrors } = useWorkbenchLog();
   const inputRef = useRef<HTMLInputElement>(null);
   const layoutInputRef = useRef<HTMLInputElement>(null);
+  const scatterExporter = useRef<((fileName: string) => void) | null>(null);
+  const onScatterExportReady = useCallback((fn: ((fileName: string) => void) | null) => {
+    scatterExporter.current = fn;
+  }, []);
   const [pendingLayout, setPendingLayout] = useState<PersistedLayout | null>(null);
   const saveLayout = () =>
     downloadBlob(
@@ -207,6 +213,7 @@ export function AppShell() {
         onSaveLayout={saveLayout}
         onOpenLayout={() => layoutInputRef.current?.click()}
         onExportCsv={() => log && exportCsvOrExplain(log)}
+        onExportPng={() => log && exportPng(log, scatterExporter.current)}
         compact={narrow}
         leading={
           narrow && log ? (
@@ -274,6 +281,7 @@ export function AppShell() {
           <Workbench
             log={log}
             calcErrors={calcErrors}
+            onScatterExportReady={onScatterExportReady}
             narrow={narrow}
             channelsOpen={channelsOpen}
             setChannelsOpen={setChannelsOpen}

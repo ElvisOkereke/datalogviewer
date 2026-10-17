@@ -57,6 +57,7 @@ export function Toolbar({
   onSaveLayout,
   onOpenLayout,
   onExportCsv,
+  onExportPng,
   leading,
   compact = false,
 }: {
@@ -67,6 +68,7 @@ export function Toolbar({
   onSaveLayout(): void;
   onOpenLayout(): void;
   onExportCsv(): void;
+  onExportPng(): void;
   /** Extra controls at the start (e.g. the channels drawer button on narrow screens). */
   leading?: ReactNode;
   /** Narrow screens: secondary actions move into the overflow menu. */
@@ -192,6 +194,7 @@ export function Toolbar({
           {log && (
             <>
               <DropdownMenuItem onSelect={onExportCsv}>Export CSV</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onExportPng}>Export PNG</DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
           )}
