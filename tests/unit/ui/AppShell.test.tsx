@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, expect, test, vi } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { parseCsvText } from '@/io/csv/parseCsv';
 import { EMPTY_LAYOUT } from '@/state/layout';
@@ -92,4 +92,32 @@ test('a very large file asks before loading', async () => {
   expect(loadFile).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole('button', { name: 'Load anyway' }));
   expect(loadFile).toHaveBeenCalledWith(big);
+});
+
+describe('calculated channels', () => {
+  test('a definition in the layout shows as an fx channel in the sidebar', () => {
+    useLayoutStore.setState({
+      ...EMPTY_LAYOUT,
+      calculated: [{ id: 'k', name: 'Double RPM', expression: '[RPM] * 2' }],
+    });
+    renderShell();
+    loadLog();
+    const row = screen
+      .getAllByTestId('channel-row')
+      .find((r) => r.textContent?.includes('Double RPM'))!;
+    expect(row).toHaveTextContent('fx');
+    expect(row).toHaveAttribute('aria-disabled', 'false');
+  });
+
+  test('a definition this log cannot satisfy is listed with the reason, and the app still renders', () => {
+    useLayoutStore.setState({
+      ...EMPTY_LAYOUT,
+      calculated: [{ id: 'k', name: 'Ratio', expression: '[Lambda] * 2' }],
+    });
+    renderShell();
+    loadLog();
+    expect(screen.getByTestId('calc-unavailable')).toHaveTextContent('Ratio');
+    expect(screen.getByTestId('calc-unavailable')).toHaveTextContent('needs [Lambda]');
+    expect(screen.getAllByTestId('chart-pane').length).toBeGreaterThan(0);
+  });
 });

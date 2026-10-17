@@ -24,6 +24,7 @@ import { Toolbar } from './Toolbar';
 import { useFileDrop } from './useFileDrop';
 import { useIsNarrow } from './useIsNarrow';
 import { useShortcuts } from './useShortcuts';
+import { useWorkbenchLog } from './useWorkbenchLog';
 
 /** Resets the view, applies a layout and summarises warnings whenever a new log becomes active. */
 function useOnNewLog(log: Log | null, showWarnings: (w: ParseWarning[]) => void) {
@@ -46,11 +47,13 @@ function useOnNewLog(log: Log | null, showWarnings: (w: ParseWarning[]) => void)
 
 function Workbench({
   log,
+  calcErrors,
   narrow,
   channelsOpen,
   setChannelsOpen,
 }: {
   log: Log;
+  calcErrors: Record<string, string>;
   narrow: boolean;
   channelsOpen: boolean;
   setChannelsOpen(open: boolean): void;
@@ -89,7 +92,7 @@ function Workbench({
             <SheetHeader className="sr-only">
               <SheetTitle>Channels</SheetTitle>
             </SheetHeader>
-            <Sidebar log={log} onPlotted={() => setChannelsOpen(false)} />
+            <Sidebar log={log} calcErrors={calcErrors} onPlotted={() => setChannelsOpen(false)} />
           </SheetContent>
         </Sheet>
         <Sheet open={inspectorOpen} onOpenChange={setInspectorOpen}>
@@ -110,7 +113,7 @@ function Workbench({
     <div className="flex min-h-0 flex-1">
       <div className="shrink-0" style={{ width: sidebarWidth }}>
         <ErrorBoundary resetKey={log.id} label="the channel list">
-          <Sidebar log={log} />
+          <Sidebar log={log} calcErrors={calcErrors} />
         </ErrorBoundary>
       </div>
       {main}
@@ -126,7 +129,10 @@ function Workbench({
 }
 
 export function AppShell() {
-  const log = useLogStore(selectActiveLog);
+  // Side effects of opening a file follow the raw log; views read the workbench log, which
+  // also changes whenever a calculated channel is edited.
+  const rawLog = useLogStore(selectActiveLog);
+  const { log, calcErrors } = useWorkbenchLog();
   const inputRef = useRef<HTMLInputElement>(null);
   const [pendingLarge, setPendingLarge] = useState<File | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -141,7 +147,7 @@ export function AppShell() {
   }, []);
   const dragging = useFileDrop(openFile);
   useShortcuts(useCallback(() => setShortcutsOpen(true), []));
-  useOnNewLog(log, setWarnings);
+  useOnNewLog(rawLog, setWarnings);
   const chooseFile = () => inputRef.current?.click();
 
   return (
@@ -183,6 +189,7 @@ export function AppShell() {
         <ErrorBoundary resetKey={log.id} label="the workbench">
           <Workbench
             log={log}
+            calcErrors={calcErrors}
             narrow={narrow}
             channelsOpen={channelsOpen}
             setChannelsOpen={setChannelsOpen}
