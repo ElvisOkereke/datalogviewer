@@ -1,13 +1,22 @@
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { MoreHorizontal, Plus } from 'lucide-react';
 import { useMemo, useRef, useState, type DragEvent } from 'react';
 import { resolveSeriesColor } from '@/charts/palette';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import type { CalculatedDef } from '@/data/calculated';
 import { filterByQuery } from '@/data/search';
 import type { Channel, Log } from '@/data/types';
 import { cn } from '@/lib/utils';
 import { selectedPaneId } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
 import { useViewStore } from '@/state/viewStore';
+import { CalculatedEditor } from './CalculatedEditor';
 
 export const CHANNEL_MIME = 'application/x-dlv-channel';
 const VIRTUALIZE_ABOVE = 200;
@@ -40,6 +49,12 @@ export function Sidebar({
   onPlotted?: () => void;
 }) {
   const calculated = useLayoutStore((s) => s.calculated);
+  const [editor, setEditor] = useState<{ open: boolean; editing?: CalculatedDef }>({ open: false });
+  const defFor = (channelId: string) => calculated.find((d) => `calc:${d.id}` === channelId);
+  const calcMenu = (def: CalculatedDef) => ({
+    edit: () => setEditor({ open: true, editing: def }),
+    remove: () => useLayoutStore.getState().removeCalculated(def.id),
+  });
   const [query, setQuery] = useState('');
   const panes = useLayoutStore((s) => s.panes);
   const focusedPaneId = useViewStore((s) => s.focusedPaneId);
@@ -73,6 +88,20 @@ export function Sidebar({
         aria-label="Search channels"
         className="h-8 text-xs"
       />
+      <button
+        type="button"
+        onClick={() => setEditor({ open: true })}
+        className="flex items-center gap-1.5 rounded-sm px-1.5 py-1 text-left text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+      >
+        <Plus className="size-3.5" aria-hidden />
+        New calculated channel
+      </button>
+      <CalculatedEditor
+        open={editor.open}
+        editing={editor.editing}
+        log={log}
+        onOpenChange={(open) => setEditor((e) => ({ ...e, open }))}
+      />
       <p className="px-1 text-[11px] text-muted-foreground" aria-live="polite">
         {panes.length ? `Chart ${targetIndex + 1} of ${panes.length}` : 'No charts yet'}
       </p>
@@ -89,15 +118,19 @@ export function Sidebar({
               Calculated
             </h3>
             <div role="list">
-              {calcChannels.map((c) => (
-                <ChannelRow
-                  key={c.id}
-                  channel={c}
-                  isTime={false}
-                  row={stateOf(c.header)}
-                  onPlotted={onPlotted}
-                />
-              ))}
+              {calcChannels.map((c) => {
+                const def = defFor(c.id);
+                return (
+                  <ChannelRow
+                    key={c.id}
+                    channel={c}
+                    isTime={false}
+                    row={stateOf(c.header)}
+                    onPlotted={onPlotted}
+                    menu={def && calcMenu(def)}
+                  />
+                );
+              })}
               {unavailable.map((d) => (
                 <div
                   key={d.id}
@@ -110,8 +143,9 @@ export function Sidebar({
                     <span className="truncate line-through">{d.name}</span>
                     <FxTag />
                   </span>
-                  <span className="pl-4.5 text-[11px] text-muted-foreground">
+                  <span className="flex items-center justify-between pl-4.5 text-[11px] text-muted-foreground">
                     {calcErrors[d.id]}
+                    <CalcMenu name={d.name} {...calcMenu(d)} />
                   </span>
                 </div>
               ))}
@@ -182,11 +216,14 @@ function ChannelRow({
   isTime,
   row,
   onPlotted,
+  menu,
 }: {
   channel: Channel;
   isTime: boolean;
   row: RowState;
   onPlotted?: () => void;
+  /** Edit/Delete actions for calculated channels. */
+  menu?: { edit(): void; remove(): void };
 }) {
   const plottable = channel.kind !== 'text';
   const onDragStart = (e: DragEvent) => {
@@ -194,7 +231,7 @@ function ChannelRow({
     e.dataTransfer.effectAllowed = 'copy';
   };
   return (
-    <div role="listitem">
+    <div role="listitem" className="group flex items-center">
       <button
         type="button"
         data-testid="channel-row"
@@ -216,7 +253,7 @@ function ChannelRow({
         }}
         onDragStart={plottable ? onDragStart : undefined}
         className={cn(
-          'flex h-7 w-full items-center gap-2 rounded-sm px-1.5 text-left text-xs',
+          'flex h-7 min-w-0 flex-1 items-center gap-2 rounded-sm px-1.5 text-left text-xs',
           plottable ? 'hover:bg-accent' : 'cursor-default opacity-50',
           row.state === 'here' && 'bg-accent/70 font-medium',
         )}
@@ -249,7 +286,27 @@ function ChannelRow({
           </span>
         )}
       </button>
+      {menu && <CalcMenu name={channel.name} {...menu} />}
     </div>
+  );
+}
+
+function CalcMenu({ name, edit, remove }: { name: string; edit(): void; remove(): void }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        aria-label={`Options for ${name}`}
+        className="rounded-sm p-1 text-muted-foreground opacity-60 group-hover:opacity-100 hover:bg-accent focus-visible:opacity-100"
+      >
+        <MoreHorizontal className="size-3.5" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={edit}>Edit</DropdownMenuItem>
+        <DropdownMenuItem variant="destructive" onSelect={remove}>
+          Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

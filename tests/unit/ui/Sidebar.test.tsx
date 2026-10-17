@@ -156,3 +156,29 @@ describe('the list follows the selected chart', () => {
     expect(row('RPM')).toHaveAttribute('aria-pressed', 'true');
   });
 });
+
+describe('calculated channel actions', () => {
+  test('New calculated channel opens the editor', async () => {
+    render(<Sidebar log={log} />);
+    await userEvent.click(screen.getByRole('button', { name: 'New calculated channel' }));
+    expect(
+      await screen.findByRole('dialog', { name: 'New calculated channel' }),
+    ).toBeInTheDocument();
+  });
+
+  test('a calculated row offers Edit and Delete', async () => {
+    useLayoutStore.getState().addCalculated({ name: 'Twice', expression: 'RPM * 2' });
+    const { withCalculated } = await import('@/data/calculated');
+    const withCalc = withCalculated(log, useLayoutStore.getState().calculated).log;
+    render(<Sidebar log={withCalc} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Options for Twice' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }));
+    expect(
+      await screen.findByRole('dialog', { name: 'Edit calculated channel' }),
+    ).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    await userEvent.click(screen.getByRole('button', { name: 'Options for Twice' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: 'Delete' }));
+    expect(useLayoutStore.getState().calculated).toEqual([]);
+  });
+});
