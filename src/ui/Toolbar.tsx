@@ -6,6 +6,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -55,6 +56,7 @@ export function Toolbar({
   onShowAbout,
   onSaveLayout,
   onOpenLayout,
+  onExportCsv,
   leading,
   compact = false,
 }: {
@@ -64,6 +66,7 @@ export function Toolbar({
   onShowAbout(): void;
   onSaveLayout(): void;
   onOpenLayout(): void;
+  onExportCsv(): void;
   /** Extra controls at the start (e.g. the channels drawer button on narrow screens). */
   leading?: ReactNode;
   /** Narrow screens: secondary actions move into the overflow menu. */
@@ -185,6 +188,12 @@ export function Toolbar({
             >
               <ThemeIcon className="size-4" /> Theme: {pref}
             </DropdownMenuItem>
+          )}
+          {log && (
+            <>
+              <DropdownMenuItem onSelect={onExportCsv}>Export CSV</DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
           )}
           <DropdownMenuItem onSelect={onShowShortcuts}>Keyboard shortcuts</DropdownMenuItem>
           <DropdownMenuItem onSelect={onShowAbout}>About</DropdownMenuItem>

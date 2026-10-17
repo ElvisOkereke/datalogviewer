@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 
 async function loadDemo(page: Page, { clear = true } = {}) {
   await page.goto('./');
@@ -108,4 +109,15 @@ test('scatter view: loads Plotly on demand and plots the first two channels', as
 
   await page.getByLabel('Colour by').selectOption({ index: 3 });
   await expect(plot.locator('.colorbar')).toHaveCount(1);
+});
+
+test('Export CSV downloads the visible range of the plotted channels', async ({ page }) => {
+  await loadDemo(page);
+  await page.getByRole('button', { name: 'More' }).click();
+  const download = page.waitForEvent('download');
+  await page.getByRole('menuitem', { name: 'Export CSV' }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toBe('demo-run-0-479.95s.csv');
+  const text = readFileSync((await file.path())!, 'utf8');
+  expect(text.split('\n')[0]).toMatch(/^Time \(s\),Engine Speed \(rpm\),MAP \(kPa\)/);
 });

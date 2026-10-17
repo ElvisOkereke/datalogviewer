@@ -32,6 +32,7 @@ import { ShortcutsDialog } from './ShortcutsDialog';
 import { Sidebar } from './Sidebar';
 import { Toolbar } from './Toolbar';
 import { downloadBlob } from './download';
+import { exportCsvOrExplain } from './exports';
 import { parseLayoutFile, serializeLayout } from './layoutFile';
 import { useFileDrop } from './useFileDrop';
 import { useIsNarrow } from './useIsNarrow';
@@ -205,6 +206,7 @@ export function AppShell() {
         onShowAbout={() => setAboutOpen(true)}
         onSaveLayout={saveLayout}
         onOpenLayout={() => layoutInputRef.current?.click()}
+        onExportCsv={() => log && exportCsvOrExplain(log)}
         compact={narrow}
         leading={
           narrow && log ? (

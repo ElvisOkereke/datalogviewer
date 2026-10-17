@@ -9,6 +9,7 @@ import type { Channel, Log } from '@/data/types';
 import type { InspectorTab } from '@/state/layout';
 import { useLayoutStore } from '@/state/layoutStore';
 import { useViewStore } from '@/state/viewStore';
+import { exportCsvOrExplain } from './exports';
 import { MarkersTab } from './MarkersTab';
 
 const valueAt = (ch: Channel, i: number | null) => {
@@ -138,6 +139,14 @@ function RangeTab({ log, channels }: { log: Log; channels: Channel[] }) {
           onClick={() => useViewStore.getState().clearSelection()}
         >
           Clear
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="ml-auto h-7 text-xs"
+          onClick={() => exportCsvOrExplain(log)}
+        >
+          Export CSV
         </Button>
       </div>
       <div className="grid grid-cols-[1fr_repeat(4,auto)] gap-x-2 px-1 text-[10px] text-muted-foreground uppercase">
