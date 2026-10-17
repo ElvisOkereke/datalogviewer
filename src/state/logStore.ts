@@ -3,7 +3,11 @@ import { LogParseError, type LogErrorCode } from '@/data/errors';
 import type { Log } from '@/data/types';
 import { parseFileInWorker } from '@/workers/parseClient';
 
-export type ParseFn = (file: File, onProgress: (fraction: number) => void) => Promise<Log>;
+export type ParseFn = (
+  file: File,
+  onProgress: (fraction: number) => void,
+  signal: AbortSignal,
+) => Promise<Log>;
 
 export type LoadStatus =
   | { kind: 'idle' }
@@ -44,49 +48,77 @@ export function createLogStore(
   parse: ParseFn,
   fetchFn: typeof fetch = (input, init) => fetch(input, init),
 ) {
-  return create<LogState>()((set, get) => ({
-    logs: {},
-    activeLogId: null,
-    status: { kind: 'idle' },
+  return create<LogState>()((set) => {
+    // Only the most recent load may touch state; starting a new one cancels the previous one.
+    let current: AbortController | null = null;
 
-    async loadFile(file) {
-      set({ status: { kind: 'loading', fileName: file.name, progress: 0 } });
+    function begin(fileName: string): AbortController {
+      current?.abort();
+      const load = new AbortController();
+      current = load;
+      set({ status: { kind: 'loading', fileName, progress: 0 } });
+      return load;
+    }
+
+    async function run(file: File, load: AbortController): Promise<void> {
       try {
-        const log = await parse(file, (progress) => {
-          const s = get().status;
-          if (s.kind === 'loading') set({ status: { ...s, progress } });
-        });
+        const log = await parse(
+          file,
+          (progress) => {
+            if (current === load)
+              set({ status: { kind: 'loading', fileName: file.name, progress } });
+          },
+          load.signal,
+        );
+        if (current !== load) return;
         // Tier 1 shows one log at a time; the map shape is kept for log comparison later.
         set({ logs: { [log.id]: log }, activeLogId: log.id, status: { kind: 'idle' } });
       } catch (err) {
+        if (current !== load) return;
         const code = err instanceof LogParseError ? err.code : 'internal';
         set({ status: { kind: 'error', fileName: file.name, code, message: message(err) } });
       }
-    },
+    }
 
-    async loadSample(sample) {
-      set({ status: { kind: 'loading', fileName: sample.fileName, progress: 0 } });
-      try {
-        const res = await fetchFn(`${import.meta.env.BASE_URL}${sample.path}`);
-        if (!res.ok) throw new Error(`Couldn't download the sample log (HTTP ${res.status}).`);
-        const blob = await res.blob();
-        await get().loadFile(new File([blob], sample.fileName, { type: 'text/csv' }));
-      } catch (err) {
-        set({
-          status: {
-            kind: 'error',
-            fileName: sample.fileName,
-            code: 'internal',
-            message: message(err),
-          },
-        });
-      }
-    },
+    return {
+      logs: {},
+      activeLogId: null,
+      status: { kind: 'idle' },
 
-    dismissError() {
-      set({ status: { kind: 'idle' } });
-    },
-  }));
+      loadFile(file) {
+        return run(file, begin(file.name));
+      },
+
+      async loadSample(sample) {
+        const load = begin(sample.fileName);
+        let blob: Blob;
+        try {
+          const res = await fetchFn(`${import.meta.env.BASE_URL}${sample.path}`, {
+            signal: load.signal,
+          });
+          if (!res.ok) throw new Error(`Couldn't download the sample log (HTTP ${res.status}).`);
+          blob = await res.blob();
+        } catch (err) {
+          if (current !== load) return;
+          set({
+            status: {
+              kind: 'error',
+              fileName: sample.fileName,
+              code: 'internal',
+              message: message(err),
+            },
+          });
+          return;
+        }
+        if (current !== load) return;
+        await run(new File([blob], sample.fileName, { type: 'text/csv' }), load);
+      },
+
+      dismissError() {
+        set({ status: { kind: 'idle' } });
+      },
+    };
+  });
 }
 
 export const useLogStore = createLogStore(parseFileInWorker);

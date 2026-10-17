@@ -205,3 +205,73 @@ test('reports progress ending at 1', () => {
   expect(seen.at(-1)).toBe(1);
   expect(seen.every((f, i) => i === 0 || f >= seen[i - 1])).toBe(true);
 });
+
+describe('final review fixes', () => {
+  test('a trailing delimiter on every data row keeps the header and time axis', () => {
+    const log = parse('Time,RPM,AFR\n0,800,14.7,\n0.05,810,14.6,\n0.1,820,14.5,');
+    expect(log.channels.map((c) => c.name)).toEqual(['Time', 'RPM', 'AFR']);
+    expect(log.timeSource).toMatchObject({ kind: 'column' });
+    expect(log.rowCount).toBe(3);
+    expect(codes(log)).not.toContain('long-rows');
+  });
+
+  test('a trailing delimiter on the header only keeps the header', () => {
+    const log = parse('Time,RPM,AFR,\n0,800,14.7\n0.05,810,14.6');
+    expect(log.channels.map((c) => c.name)).toEqual(['Time', 'RPM', 'AFR']);
+    expect(log.timeSource).toMatchObject({ kind: 'column' });
+    expect(codes(log)).not.toContain('short-rows');
+  });
+
+  test('a mostly-empty last column keeps its header', () => {
+    const log = parse('Time,RPM,Note\n0,800,\n0.05,810,\n0.1,820,start');
+    expect(log.channels.map((c) => c.name)).toEqual(['Time', 'RPM', 'Note']);
+    expect(byName(log, 'Note').text).toEqual(['', '', 'start']);
+  });
+
+  test('a stray quote does not swallow the following rows', () => {
+    const log = parse('n,RPM,Note\n0,800,ok\n1,810,"Pulled over" said\n2,820,ok\n3,830,ok');
+    expect(log.rowCount).toBe(4);
+    expect(nums(log, 'RPM')).toEqual([800, 810, 820, 830]);
+    expect(codes(log)).toContain('quotes-ignored');
+  });
+
+  test('an unterminated quote does not swallow the rest of the file', () => {
+    const log = parse('a,b,c\n1,2,"bad\n3,4,ok\n5,6,ok');
+    expect(log.rowCount).toBe(3);
+    expect(nums(log, 'a')).toEqual([1, 3, 5]);
+    expect(codes(log)).toContain('quotes-ignored');
+  });
+
+  test('warm-up placeholders do not turn a numeric channel into text', () => {
+    const rows = Array.from(
+      { length: 2000 },
+      (_, i) =>
+        `${(i / 20).toFixed(2)},${i < 300 ? '---' : (14 + (i % 10) / 10).toFixed(1)},${i < 50 ? 'N/A' : 800 + i}`,
+    );
+    const log = parse(['Time,AFR,RPM', ...rows].join('\n'));
+    expect(byName(log, 'AFR').kind).toBe('numeric');
+    expect(byName(log, 'AFR').values![0]).toBeNaN();
+    expect(byName(log, 'AFR').values![300]).toBe(14);
+    expect(byName(log, 'RPM').kind).toBe('numeric');
+    expect(codes(log)).not.toContain('non-numeric-cells');
+  });
+
+  test('day-first dotted date-times are a time axis', () => {
+    const log = parse('Timestamp,RPM\n17.10.2026 12:00:00,800\n17.10.2026 12:00:01.5,810');
+    expect(log.timeSource).toMatchObject({ kind: 'column', originalUnit: 'datetime' });
+    expect(log.time[1]).toBeCloseTo(1.5);
+  });
+
+  test('a ms-unit channel that is not a time column gets no "logger reset" warning', () => {
+    const log = parse('RPM,Dwell (ms)\n800,3.1\n810,3.0\n820,3.2');
+    expect(log.timeSource).toEqual({ kind: 'index' });
+    expect(codes(log)).toContain('no-time-column');
+    expect(codes(log)).not.toContain('time-not-monotonic');
+  });
+
+  test('a time column that never changes is not used as the time axis', () => {
+    const log = parse('Time,RPM\n0,800\n0,810\n0,820');
+    expect(log.timeSource).toEqual({ kind: 'index' });
+    expect(codes(log)).toContain('time-constant');
+  });
+});

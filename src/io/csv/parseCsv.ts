@@ -5,11 +5,13 @@ import { GrowableF64 } from '@/data/growable';
 import { finiteMinMax } from '@/data/stats';
 import type { Channel, Log, ParseWarning } from '@/data/types';
 import type { TextEncodingName } from './decode';
-import { parseNumber } from './number';
+import { isBlankOrPlaceholder, parseNumber } from './number';
 import {
   detectDecimalComma,
   detectDelimiter,
+  effectiveLength,
   findHeaderIndex,
+  modalEffectiveLength,
   numericFraction,
   type Delimiter,
 } from './sniff';
@@ -56,7 +58,7 @@ export function firstLines(text: string, max: number): string[] {
 }
 
 function classifyColumn(cells: string[], decimal: '.' | ',', header: string): ColumnKind {
-  const nonBlank = cells.filter((c) => c.trim() !== '');
+  const nonBlank = cells.filter((c) => !isBlankOrPlaceholder(c));
   if (nonBlank.length === 0) return 'numeric';
   if (numericFraction(nonBlank, decimal) >= NUMERIC_THRESHOLD) return 'numeric';
   const { name, unit } = splitHeaderUnit(header);
@@ -75,7 +77,6 @@ export function sniffLayout(headRows: string[][], delimiter: Delimiter): CsvLayo
   const preambleLines = findHeaderIndex(headRows);
   const rows = headRows.slice(preambleLines);
   const decimal = detectDecimalComma(rows, delimiter) ? ',' : '.';
-  const columnCount = rows[0]?.length ?? 0;
 
   const hasHeader = rows.length > 0 && numericFraction(rows[0], decimal) < 0.5;
   const hasUnitsRow =
@@ -85,6 +86,8 @@ export function sniffLayout(headRows: string[][], delimiter: Delimiter): CsvLayo
     numericFraction(rows[2], decimal) >= 0.5;
 
   const sample = rows.slice((hasHeader ? 1 : 0) + (hasUnitsRow ? 1 : 0));
+  // Trailing blank cells (a delimiter at the end of each line) are not extra columns.
+  const columnCount = hasHeader ? effectiveLength(rows[0]) : modalEffectiveLength(rows);
   const headers = hasHeader ? rows[0] : [];
   const kinds = Array.from({ length: columnCount }, (_, c) =>
     classifyColumn(
@@ -105,13 +108,43 @@ function uniqueHeader(base: string, seen: Map<string, number>): string {
 export function parseCsvText(text: string, opts: CsvParseOptions): Log {
   const lines = firstLines(text, SNIFF_LINES);
   if (lines.length === 0) throw new LogParseError('empty', `"${opts.fileName}" is empty.`);
-
   const delimiter = detectDelimiter(lines);
-  const headRows = Papa.parse<string[]>(text, {
+
+  try {
+    return parseWithQuoting(text, opts, delimiter, '"');
+  } catch (err) {
+    if (err !== UNBALANCED_QUOTES) throw err;
+  }
+  // An unbalanced quote makes Papa Parse fold every following line into one cell. Logs rarely
+  // need quoting, so losing it beats silently losing rows.
+  const log = parseWithQuoting(text, opts, delimiter, NO_QUOTE);
+  log.meta.warnings.unshift({
+    code: 'quotes-ignored',
+    message: 'Some quotes in this file are unbalanced, so quote marks were read as ordinary text.',
+  });
+  return log;
+}
+
+const NO_QUOTE = '\u0000';
+const UNBALANCED_QUOTES = Symbol('unbalanced quotes');
+
+const hasQuoteError = (errors: Papa.ParseError[]) => errors.some((e) => e.type === 'Quotes');
+
+function parseWithQuoting(
+  text: string,
+  opts: CsvParseOptions,
+  delimiter: Delimiter,
+  quoteChar: string,
+): Log {
+  const quoting = quoteChar !== NO_QUOTE;
+  const head = Papa.parse<string[]>(text, {
     ...PAPA_ROWS,
     delimiter,
+    quoteChar,
     preview: SNIFF_LINES,
-  }).data;
+  });
+  if (quoting && hasQuoteError(head.errors)) throw UNBALANCED_QUOTES;
+  const headRows = head.data;
   if (headRows.length === 0) throw new LogParseError('empty', `"${opts.fileName}" is empty.`);
   const layout = sniffLayout(headRows, delimiter);
   const { columnCount, kinds, decimal } = layout;
@@ -136,11 +169,18 @@ export function parseCsvText(text: string, opts: CsvParseOptions): Log {
   let long = 0;
   let firstShort = 0;
   let firstLong = 0;
+  let quoteTrouble = false;
 
   Papa.parse<string[]>(text, {
     ...PAPA_ROWS,
     delimiter,
-    step: (result) => {
+    quoteChar,
+    step: (result, parser) => {
+      if (quoting && hasQuoteError(result.errors)) {
+        quoteTrouble = true;
+        parser.abort();
+        return;
+      }
       const row = result.data;
       const r = rowIndex++;
       if (r < headerRow) {
@@ -158,7 +198,7 @@ export function parseCsvText(text: string, opts: CsvParseOptions): Log {
 
       if (row.length < columnCount) {
         if (short++ === 0) firstShort = r + 1;
-      } else if (row.length > columnCount) {
+      } else if (row.length > columnCount && effectiveLength(row) > columnCount) {
         if (long++ === 0) firstLong = r + 1;
       }
       for (let c = 0; c < columnCount; c++) {
@@ -169,7 +209,7 @@ export function parseCsvText(text: string, opts: CsvParseOptions): Log {
           continue;
         }
         const v = kind === 'numeric' ? parseNumber(cell, decimal) : parseClockOrDate(cell);
-        if (Number.isNaN(v) && cell.trim() !== '') badCells[c]++;
+        if (Number.isNaN(v) && !isBlankOrPlaceholder(cell)) badCells[c]++;
         numeric[c]!.push(v);
       }
 
@@ -180,6 +220,7 @@ export function parseCsvText(text: string, opts: CsvParseOptions): Log {
     },
   });
 
+  if (quoteTrouble) throw UNBALANCED_QUOTES;
   if (dataRows === 0) {
     throw new LogParseError('empty', `"${opts.fileName}" has no data rows.`);
   }

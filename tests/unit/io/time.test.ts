@@ -53,3 +53,23 @@ test('toRelativeSeconds scales, rebases and forward-fills', () => {
     0, 0, 0, 0.1,
   ]);
 });
+
+describe('parseClockOrDate formats', () => {
+  test('ISO-like with a space or T, fractional seconds', () => {
+    const a = parseClockOrDate('2026-10-01 12:00:00');
+    expect(parseClockOrDate('2026-10-01T12:00:00.250') - a).toBeCloseTo(0.25);
+  });
+  test('day-first dotted dates', () => {
+    expect(parseClockOrDate('18.10.2026 00:00:00') - parseClockOrDate('17.10.2026 00:00:00')).toBe(
+      86400,
+    );
+  });
+  test('slashed dates are day-first when the first number is over 12', () => {
+    expect(parseClockOrDate('25/10/2026 00:00:00') - parseClockOrDate('24/10/2026 00:00:00')).toBe(
+      86400,
+    );
+    expect(parseClockOrDate('10/25/2026 00:00:00') - parseClockOrDate('10/24/2026 00:00:00')).toBe(
+      86400,
+    );
+  });
+});

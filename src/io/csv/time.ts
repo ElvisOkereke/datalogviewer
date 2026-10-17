@@ -5,6 +5,34 @@ const MS_NAME = /^(ms|millis(econds)?)$/i;
 const TIME_UNIT = /^(s|sec|secs|ms)$/i;
 const CLOCK = /^(\d{1,2}):(\d{2}):(\d{2}(?:\.\d+)?)$/;
 const HAS_DATE = /\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}/;
+const TIME_PART = String.raw`[ T](\d{1,2}):(\d{2})(?::(\d{2}(?:\.\d+)?))?`;
+const ISO_DATE = new RegExp(
+  String.raw`^(\d{4})-(\d{1,2})-(\d{1,2})${TIME_PART}(?:Z|[+-]\d{2}:?\d{2})?$`,
+);
+const DOT_DATE = new RegExp(String.raw`^(\d{1,2})\.(\d{1,2})\.(\d{4})${TIME_PART}$`);
+const SLASH_DATE = new RegExp(String.raw`^(\d{1,2})/(\d{1,2})/(\d{4})${TIME_PART}$`);
+
+/**
+ * Seconds for a wall-clock date-time, computed with Date.UTC so every browser agrees (Date.parse
+ * of "YYYY-MM-DD hh:mm:ss" is engine-specific). Only differences matter, so the zone is ignored.
+ */
+function wallClockSeconds(y: string, mo: string, d: string, h: string, mi: string, s = '0') {
+  return Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi)) / 1000 + Number(s);
+}
+
+function parseDateTime(s: string): number {
+  let m = ISO_DATE.exec(s);
+  if (m) return wallClockSeconds(m[1], m[2], m[3], m[4], m[5], m[6]);
+  m = DOT_DATE.exec(s); // European loggers: day.month.year
+  if (m) return wallClockSeconds(m[3], m[2], m[1], m[4], m[5], m[6]);
+  m = SLASH_DATE.exec(s); // Month first, unless the first number can only be a day.
+  if (m) {
+    const dayFirst = Number(m[1]) > 12;
+    return wallClockSeconds(m[3], dayFirst ? m[2] : m[1], dayFirst ? m[1] : m[2], m[4], m[5], m[6]);
+  }
+  const t = Date.parse(s);
+  return Number.isNaN(t) ? NaN : t / 1000;
+}
 
 export function isTimeChannel(name: string, unit?: string): boolean {
   return TIME_NAME.test(name.trim()) || (unit !== undefined && TIME_UNIT.test(unit.trim()));
@@ -20,10 +48,9 @@ export function parseClockOrDate(cell: string): number {
   if (!s) return NaN;
   const m = CLOCK.exec(s);
   if (m) return Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]);
-  // Require a date part so Date.parse doesn't accept arbitrary words or bare numbers.
+  // Require a date part so arbitrary words or bare numbers are never read as dates.
   if (!HAS_DATE.test(s)) return NaN;
-  const t = Date.parse(s);
-  return Number.isNaN(t) ? NaN : t / 1000;
+  return parseDateTime(s);
 }
 
 export function isNonDecreasing(values: Float64Array): boolean {
@@ -60,11 +87,18 @@ export function pickTime(
   datetimeIds: Set<string>,
   rowCount: number,
 ): { time: Float64Array; timeSource: TimeSource; warning?: ParseWarning } {
-  let rejected: Channel | undefined;
+  let rejected: { ch: Channel; reason: 'backwards' | 'constant' } | undefined;
   for (const ch of channels) {
     if (ch.kind !== 'numeric' || !ch.values || !isTimeChannel(ch.name, ch.unit)) continue;
+    // Only columns *named* like time earn a warning; a unit-only match such as "Dwell (ms)" is
+    // just a channel that happens to be measured in ms.
+    const namedTime = TIME_NAME.test(ch.name.trim());
     if (!isNonDecreasing(ch.values)) {
-      rejected ??= ch;
+      if (namedTime) rejected ??= { ch, reason: 'backwards' };
+      continue;
+    }
+    if (!(ch.max > ch.min)) {
+      if (namedTime) rejected ??= { ch, reason: 'constant' };
       continue;
     }
     const isDatetime = datetimeIds.has(ch.id);
@@ -81,14 +115,19 @@ export function pickTime(
 
   const time = new Float64Array(rowCount);
   for (let i = 0; i < rowCount; i++) time[i] = i;
-  const warning: ParseWarning = rejected
+  const warning: ParseWarning = !rejected
     ? {
-        code: 'time-not-monotonic',
-        message: `"${rejected.header}" goes backwards (logger reset?), so samples are plotted by row number.`,
-      }
-    : {
         code: 'no-time-column',
         message: 'No time column found, so samples are plotted by row number.',
-      };
+      }
+    : rejected.reason === 'backwards'
+      ? {
+          code: 'time-not-monotonic',
+          message: `"${rejected.ch.header}" goes backwards (logger reset?), so samples are plotted by row number.`,
+        }
+      : {
+          code: 'time-constant',
+          message: `"${rejected.ch.header}" never changes, so samples are plotted by row number.`,
+        };
   return { time, timeSource: { kind: 'index' }, warning };
 }

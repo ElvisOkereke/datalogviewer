@@ -22,11 +22,15 @@ const UNIT_LABEL = { s: 'seconds', ms: 'milliseconds', datetime: 'date-time' } a
 const fmt = (n: number) =>
   Number.isFinite(n) ? n.toLocaleString('en-US', { maximumFractionDigits: 3 }) : '—';
 
+/**
+ * Pre-fills a GitHub issue with the error code and app version only. The message can contain the
+ * file name and column headers, which must never leave the browser without the user typing them.
+ */
 function reportUrl(status: Extract<LoadStatus, { kind: 'error' }>): string {
   const title = `Can't open a log file (${status.code})`;
   const body = [
     `Error code: ${status.code}`,
-    `Message: ${status.message}`,
+    `App version: ${__APP_VERSION__}`,
     '',
     'Which logger or software produced the file?',
     '',

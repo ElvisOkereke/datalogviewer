@@ -78,3 +78,54 @@ describe('logStore', () => {
     expect(store.getState().status).toMatchObject({ kind: 'error', code: 'internal' });
   });
 });
+
+describe('overlapping loads', () => {
+  /** A parse function whose calls stay pending until the test settles them. */
+  function controllableParse() {
+    const calls: {
+      file: File;
+      signal: AbortSignal;
+      progress: (f: number) => void;
+      resolve: (log: Log) => void;
+      reject: (e: unknown) => void;
+    }[] = [];
+    const parse: ParseFn = (file, progress, signal) =>
+      new Promise((resolve, reject) => calls.push({ file, signal, progress, resolve, reject }));
+    return { parse, calls };
+  }
+
+  test('a slower earlier load cannot replace the file opened last', async () => {
+    const { parse, calls } = controllableParse();
+    const store = createLogStore(parse);
+    const first = store.getState().loadFile(file('slow.csv'));
+    const second = store.getState().loadFile(file('fast.csv'));
+    calls[1].resolve(fakeLog('FAST', 'fast.csv'));
+    await second;
+    calls[0].progress(0.9);
+    calls[0].resolve(fakeLog('SLOW', 'slow.csv'));
+    await first;
+    expect(store.getState().activeLogId).toBe('FAST');
+    expect(store.getState().status).toEqual({ kind: 'idle' });
+  });
+
+  test('progress and errors from an abandoned load are ignored', async () => {
+    const { parse, calls } = controllableParse();
+    const store = createLogStore(parse);
+    const first = store.getState().loadFile(file('old.csv'));
+    void store.getState().loadFile(file('new.csv'));
+    calls[0].progress(0.7);
+    expect(store.getState().status).toEqual({ kind: 'loading', fileName: 'new.csv', progress: 0 });
+    calls[0].reject(new LogParseError('empty', 'old is empty'));
+    await first;
+    expect(store.getState().status).toMatchObject({ kind: 'loading', fileName: 'new.csv' });
+  });
+
+  test('starting a new load aborts the previous parse', () => {
+    const { parse, calls } = controllableParse();
+    const store = createLogStore(parse);
+    void store.getState().loadFile(file('a.csv'));
+    void store.getState().loadFile(file('b.csv'));
+    expect(calls[0].signal.aborted).toBe(true);
+    expect(calls[1].signal.aborted).toBe(false);
+  });
+});

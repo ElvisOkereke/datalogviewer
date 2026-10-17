@@ -38,3 +38,20 @@ test('shows parse errors with a report link and can dismiss them', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
   expect(screen.queryByRole('alert')).toBeNull();
 });
+
+test('the report link never carries file names or column names', () => {
+  useLogStore.setState({
+    status: {
+      kind: 'error',
+      fileName: 'customer-car.csv',
+      code: 'no-numeric-columns',
+      message: 'No numeric columns found in "customer-car.csv". Columns detected: VIN, Owner.',
+    },
+  });
+  render(<LoadScreen />);
+  const href = screen.getByRole('link', { name: 'Report this file' }).getAttribute('href')!;
+  const decoded = decodeURIComponent(href);
+  expect(decoded).toContain('no-numeric-columns');
+  expect(decoded).not.toContain('customer-car');
+  expect(decoded).not.toContain('VIN');
+});

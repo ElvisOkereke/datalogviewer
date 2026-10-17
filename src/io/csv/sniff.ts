@@ -1,4 +1,4 @@
-import { parseNumber } from './number';
+import { isBlankOrPlaceholder, parseNumber } from './number';
 
 export const DELIMITERS = [',', ';', '\t', '|'] as const;
 export type Delimiter = (typeof DELIMITERS)[number];
@@ -86,23 +86,42 @@ export function detectDecimalComma(rows: string[][], delimiter: Delimiter): bool
   return comma > dot;
 }
 
-/** First row with the file's usual field count and mostly non-blank cells; earlier rows are a preamble. */
+/** Length ignoring trailing blank cells — many loggers end every line with a delimiter. */
+export function effectiveLength(cells: string[]): number {
+  let n = cells.length;
+  while (n > 0 && cells[n - 1].trim() === '') n--;
+  return n;
+}
+
+/** The most common effective row length. */
+export function modalEffectiveLength(rows: string[][]): number {
+  return modeOf(rows.map(effectiveLength)).count;
+}
+
+/**
+ * First row with the file's usual field count and mostly non-blank cells; earlier rows are a
+ * preamble. A row qualifies on either its raw length (so a sparse last column still counts) or its
+ * length without trailing blanks (so a trailing delimiter on the header or the data doesn't).
+ */
 export function findHeaderIndex(rows: string[][]): number {
-  const { count } = modeOf(rows.map((r) => r.length));
+  const raw = modeOf(rows.map((r) => r.length)).count;
+  const effective = modalEffectiveLength(rows);
   const i = rows.findIndex((cells) => {
     const filled = cells.filter((c) => c.trim() !== '').length;
-    return cells.length === count && filled * 2 >= count;
+    const fits = cells.length === raw || effectiveLength(cells) === effective;
+    return fits && filled * 2 >= effective;
   });
   return i < 0 ? 0 : i;
 }
 
+/** Fraction of numeric cells, ignoring blanks and placeholders such as "---" or "N/A". */
 export function numericFraction(cells: string[], decimal: '.' | ','): number {
-  let nonBlank = 0;
+  let counted = 0;
   let numeric = 0;
   for (const c of cells) {
-    if (c.trim() === '') continue;
-    nonBlank++;
+    if (isBlankOrPlaceholder(c)) continue;
+    counted++;
     if (!Number.isNaN(parseNumber(c, decimal))) numeric++;
   }
-  return nonBlank === 0 ? 0 : numeric / nonBlank;
+  return counted === 0 ? 0 : numeric / counted;
 }
