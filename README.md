@@ -23,13 +23,15 @@ Free, fast datalog viewer for CSV logs, right in your browser.
 - **Range statistics:** Shift+drag to select a stretch of the log and see min / mean / max / std for every channel; Z zooms to it.
 - **Markers:** press M to mark a moment; markers are listed, renamable and come back when you reopen the file.
 - **Layout files:** save your charts and calculated channels to a file and share them.
+- **Scatter plots** of any two channels, optionally coloured by a third, over the view, a selection or the whole log.
+- **Export** the visible range or selection as CSV, and the charts or scatter plot as a PNG image.
 - Dark and light themes; works on phones with touch gestures.
 
 Press <kbd>?</kbd> in the app for all keyboard shortcuts.
 
 ## Roadmap
 
-- **v0.2, analyst:** calculated channels, range stats, markers and layout files (done); scatter plots and PNG/CSV export (next).
+- **v0.2, analyst (done):** calculated channels, range stats, markers, layout files, scatter plots, PNG/CSV export.
 - **v0.3+, MegaLogViewer rival:** RPM × MAP tables, log comparison, filters, more formats, offline install.
 
 ## Feedback
