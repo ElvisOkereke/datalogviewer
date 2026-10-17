@@ -5,12 +5,15 @@ import { afterEach, vi } from 'vitest';
 afterEach(cleanup);
 
 // jsdom has no matchMedia; default to a dark system preference.
-Object.defineProperty(window, 'matchMedia', {
-  writable: true,
-  value: vi.fn((query: string) => ({
-    matches: query.includes('dark'),
-    media: query,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  })),
-});
+// Files that opt into `@vitest-environment node` have no window at all.
+if (typeof window !== 'undefined') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    value: vi.fn((query: string) => ({
+      matches: query.includes('dark'),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  });
+}
